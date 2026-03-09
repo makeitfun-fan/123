@@ -901,7 +901,20 @@ function chooseIdentity(id, color) {
     localStorage.setItem('my_id', id); localStorage.setItem('my_color', color);
     closeModalEl('id-modal'); init();
 }
-window.onload = () => { if (myId) { closeModalEl('id-modal'); init(); } };
+window.onload = () => {
+    if (myId) {
+        closeModalEl('id-modal');
+        init();
+        // 恢复上次停留的页面
+        const last = localStorage.getItem('last_section') || 'home';
+        if(last !== 'home') {
+            const navItems = document.querySelectorAll('.nav-item');
+            const sections = ['home','bill','poop','life','more'];
+            const idx = sections.indexOf(last);
+            if(idx >= 0) showSection(last, navItems[idx]);
+        }
+    }
+};
 
 async function init() {
     // 日期
@@ -968,8 +981,22 @@ async function saveNickname() {
 }
 
 // ── 工具 ──
-function requestNotifPerm() { if ('Notification' in window && Notification.permission==='default') Notification.requestPermission(); }
-function pushNotif(title,body) { if ('Notification' in window && Notification.permission==='granted') new Notification(title,{body}); }
+function requestNotifPerm() {
+    if ('Notification' in window && Notification.permission==='default') {
+        Notification.requestPermission();
+    }
+}
+function pushNotif(title,body) {
+    // 震动（Android支持）
+    if(navigator.vibrate) navigator.vibrate([200,100,200]);
+    if ('Notification' in window && Notification.permission==='granted') {
+        new Notification(title, {body, icon:'icon.png'});
+    } else if('Notification' in window && Notification.permission==='default') {
+        Notification.requestPermission().then(p => {
+            if(p==='granted') new Notification(title, {body, icon:'icon.png'});
+        });
+    }
+}
 function playBeep() {
     try {
         const ctx = new (window.AudioContext||window.webkitAudioContext)();
@@ -1015,7 +1042,7 @@ async function updateMyStatus(mood) {
 
 // ── 想念 ──
 async function loadMissCount() {
-    const {data} = await db.from('lovedata').select('content').eq('type','miss_count_'+pid()).maybeSingle();
+    const {data} = await db.from('lovedata').select('content').eq('type','miss_count_shared').maybeSingle();
     document.getElementById('miss-count').innerText = data ? parseInt(data.content)||0 : 0;
 }
 async function sendMiss() {
@@ -1024,18 +1051,14 @@ async function sendMiss() {
         h.style.left=(Math.random()*60+20)+'%'; h.style.bottom='160px';
         document.body.appendChild(h); setTimeout(()=>h.remove(),1500);
     },i*130);
-    const ct='miss_count_'+pid();
+    const ct='miss_count_shared';
     const {data:cd}=await db.from('lovedata').select('content,id').eq('type',ct).maybeSingle();
     const nc=cd?(parseInt(cd.content)||0)+1:1;
     if(cd) await db.from('lovedata').update({content:String(nc)}).eq('type',ct);
     else await db.from('lovedata').insert({type:ct,content:String(nc)});
-    const mt='miss_'+pid();
-    const {data:md}=await db.from('lovedata').select('id').eq('type',mt).maybeSingle();
-    if(md) await db.from('lovedata').update({content:new Date().toISOString()}).eq('type',mt);
-    else await db.from('lovedata').insert({type:mt,content:new Date().toISOString()});
     document.getElementById('miss-count').innerText=nc;
     const tip=document.getElementById('miss-tip');
-    tip.innerText='已发送给 '+ptName()+' 💕'; setTimeout(()=>tip.innerText='',3000);
+    tip.innerText='❤️ 你们共想念了 '+nc+' 次'; setTimeout(()=>tip.innerText='',3000);
 }
 
 // ── 出发到达 ──
@@ -1477,6 +1500,7 @@ function showSection(id,el){
     document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
     document.getElementById(id).classList.add('active'); el.classList.add('active');
+    localStorage.setItem('last_section', id);
     if(id==='home'){renderMessages();fetchMyStatus();fetchPartnerStatus();fetchTravelStatus();}
     if(id==='bill'){renderBills();renderWishes();}
     if(id==='poop'){renderCalendar();checkPoopWarning();}
