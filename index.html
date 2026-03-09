@@ -1053,9 +1053,12 @@ async function sendMiss() {
     },i*130);
     const ct='miss_count_shared';
     const {data:cd}=await db.from('lovedata').select('content,id').eq('type',ct).maybeSingle();
-    const nc=cd?(parseInt(cd.content)||0)+1:1;
-    if(cd) await db.from('lovedata').update({content:String(nc)}).eq('type',ct);
-    else await db.from('lovedata').insert({type:ct,content:String(nc)});
+    const nc=(cd&&cd.content)?( parseInt(cd.content)||0)+1:1;
+    if(cd&&cd.id){
+        await db.from('lovedata').update({content:String(nc)}).eq('id',cd.id);
+    } else {
+        await db.from('lovedata').insert({type:ct,content:String(nc)});
+    }
     document.getElementById('miss-count').innerText=nc;
     const tip=document.getElementById('miss-tip');
     tip.innerText='❤️ 你们共想念了 '+nc+' 次'; setTimeout(()=>tip.innerText='',3000);
@@ -1485,7 +1488,10 @@ async function saveSpot(){
     if(!name||!pendingLL){showToast('请填写地点名称');return;}
     await db.from('mapspots').insert({country_name:name,note:document.getElementById('spot-note').value.trim(),visited_at:document.getElementById('spot-date').value,lat:pendingLL.lat,lng:pendingLL.lng});
     document.getElementById('spot-name').value=''; document.getElementById('spot-note').value='';
-    closeModal('spot-modal'); loadMapSpots(); showToast('已点亮 📍'+name);
+    closeModal('spot-modal');
+    closeFullMap();
+    await loadMapSpots();
+    showToast('已点亮 📍'+name);
 }
 function renderSpotList(data){
     document.getElementById('spot-count').innerText=data.length;
@@ -1505,13 +1511,29 @@ function showSection(id,el){
     if(id==='bill'){renderBills();renderWishes();}
     if(id==='poop'){renderCalendar();checkPoopWarning();}
     if(id==='life'){renderTodos();renderPtItems();loadPts();renderMessages();}
-    if(id==='more'){renderDiary();renderAnniversaries();}
+    if(id==='more'){
+        renderDiary();renderAnniversaries();
+        // 恢复上次的子页面
+        const lastSub=localStorage.getItem('last_sub_more');
+        if(lastSub&&lastSub!=='diary-sub'){
+            const subEl=document.getElementById(lastSub);
+            const tabEl=document.querySelector(`[onclick*="${lastSub}"]`);
+            if(subEl&&tabEl){
+                document.getElementById('more').querySelectorAll('.sub-section').forEach(s=>s.classList.remove('active'));
+                document.getElementById('more').querySelectorAll('.sub-tab').forEach(t=>t.classList.remove('active'));
+                subEl.classList.add('active'); tabEl.classList.add('active');
+                if(lastSub==='map-sub') setTimeout(initPreviewMap,100);
+            }
+        }
+    }
 }
 function switchSub(page,id,el){
     const parent=document.getElementById(page);
     parent.querySelectorAll('.sub-section').forEach(s=>s.classList.remove('active'));
     parent.querySelectorAll('.sub-tab').forEach(t=>t.classList.remove('active'));
     document.getElementById(id).classList.add('active'); el.classList.add('active');
+    localStorage.setItem('last_sub_'+page, id);
+    if(id==='map-sub') setTimeout(initPreviewMap,100);
 }
 
 // ── 背景 ──
