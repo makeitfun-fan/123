@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>❤️ 我们的专属空间</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#ff85a1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="我们❤️">
+    <link rel="apple-touch-icon" href="icon.png">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css"/>
     <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
@@ -1503,6 +1509,13 @@ function changeBg(input){
 function startRoll(){
     const names=[myName(),ptName()], rt=document.getElementById('result-text');
     let c=0; const t=setInterval(()=>{rt.innerText=names[c%2];c++;if(c>16){clearInterval(t);rt.innerText=names[Math.floor(Math.random()*2)];}},90);
+}
+</script>
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
 }
 </script>
 </body>
