@@ -517,6 +517,23 @@
             display: none;
         }
 
+        /* ── 木鱼 ── */
+        .muyu-btn {
+            width: 72px; height: 72px; border-radius: 50%; border: none;
+            background: linear-gradient(135deg, #fff0e8, #ffe0c8);
+            font-size: 36px; cursor: pointer;
+            box-shadow: 0 4px 16px rgba(255,160,80,0.3);
+            transition: transform 0.08s, box-shadow 0.08s;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .muyu-btn:active { transform: scale(0.88); box-shadow: 0 2px 8px rgba(255,160,80,0.2); }
+        .muyu-btn.knock { animation: muyu-knock 0.15s ease; }
+        @keyframes muyu-knock {
+            0% { transform: scale(1); }
+            40% { transform: scale(0.85) rotate(-8deg); }
+            100% { transform: scale(1) rotate(0deg); }
+        }
+
         /* ── 删除按钮 ── */
         .del-btn { background:none; border:none; font-size:15px; cursor:pointer; opacity:0.35; padding:2px 4px; transition:opacity 0.2s; flex-shrink:0; }
         .del-btn:hover { opacity:0.8; }
@@ -625,22 +642,31 @@
             </div>
         </div>
 
-        <!-- 想念 + 出发到达 -->
+        <!-- 木鱼 + 出发到达 -->
         <div class="card">
             <div class="card-title">互动</div>
             <div class="action-row">
-                <button class="heart-btn" onclick="sendMiss()">
-                    <div style="font-size:32px;">❤️</div>
-                    <span style="color:var(--pink);font-size:9px;font-weight:700;margin-top:2px;">想念</span>
-                    <div class="miss-badge" id="miss-count">0</div>
-                </button>
+                <!-- 木鱼 -->
+                <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+                    <button class="muyu-btn" onclick="knockMuyu()" id="muyu-btn">🪘</button>
+                    <div style="display:flex;gap:10px;margin-top:2px;">
+                        <div style="display:flex;flex-direction:column;align-items:center;">
+                            <span class="miss-badge" id="muyu-me">0</span>
+                            <span style="font-size:9px;color:#c4a0b0;margin-top:2px;" id="muyu-label-me">我</span>
+                        </div>
+                        <div style="display:flex;flex-direction:column;align-items:center;">
+                            <span class="miss-badge" id="muyu-partner" style="background:var(--blue);">0</span>
+                            <span style="font-size:9px;color:#c4a0b0;margin-top:2px;" id="muyu-label-pt">TA</span>
+                        </div>
+                    </div>
+                    <span style="font-size:9px;color:#c4a0b0;">敲木鱼</span>
+                </div>
                 <div class="travel-col">
                     <button class="travel-btn btn-depart" onclick="sendTravel('depart')">🚗 出发了</button>
                     <button class="travel-btn btn-arrive" onclick="sendTravel('arrive')">🏠 到达了</button>
                 </div>
             </div>
             <div class="travel-status" id="travel-status"></div>
-            <div id="miss-tip" style="font-size:11px;color:#c4a0b0;text-align:center;min-height:14px;margin-top:2px;"></div>
         </div>
 
         <!-- 心情 -->
@@ -925,14 +951,14 @@ async function init() {
 
     requestNotifPerm();
     await loadNicknames();
-    loadMissCount(); fetchMyStatus(); fetchPartnerStatus(); fetchTravelStatus();
+    loadMuyuCount(); fetchMyStatus(); fetchPartnerStatus(); fetchTravelStatus();
     renderMessages(); renderBills(); renderWishes();
     renderCalendar(); checkPoopWarning();
     renderTodos(); renderPtItems(); loadPts();
     renderAnniversaries(); renderDiary();
     checkAnniversaryBanner();
 
-    setInterval(() => { fetchPartnerStatus(); fetchTravelStatus(); loadMissCount(); }, 5000);
+    setInterval(() => { fetchPartnerStatus(); fetchTravelStatus(); loadMuyuCount(); }, 5000);
 
     db.channel('msgs').on('postgres_changes', {event:'INSERT',schema:'public',table:'messages'}, p => {
         if (p.new.sender !== myId) { showToast('💬 ' + ptName() + '：' + p.new.content); pushNotif(ptName() + ' 给你留言了', p.new.content); }
@@ -941,7 +967,7 @@ async function init() {
 
     db.channel('love').on('postgres_changes', {event:'*',schema:'public',table:'lovedata'}, p => {
         if (!p.new) return;
-        if (p.new.type === 'miss_' + myId) { showToast('❤️ ' + ptName() + ' 想你了！'); pushNotif(ptName() + ' 想你了', ''); loadMissCount(); }
+        if (p.new.type === 'miss_' + myId) { showToast('❤️ ' + ptName() + ' 想你了！'); pushNotif(ptName() + ' 想你了', ''); loadMuyuCount(); }
         if (p.new.type === 'travel_' + myId) { const msg = p.new.content==='depart'?ptName()+' 出发啦 🚗':ptName()+' 到家了 🏠'; showToast(msg); pushNotif(msg,''); playBeep(); }
         fetchMyStatus(); fetchPartnerStatus();
     }).subscribe();
@@ -962,6 +988,8 @@ function updateNickUI() {
     document.getElementById('label-partner').innerText = ptName();
     document.getElementById('legend-u1').innerText = myId==='user1' ? myName() : ptName();
     document.getElementById('legend-u2').innerText = myId==='user2' ? myName() : ptName();
+    document.getElementById('muyu-label-me').innerText = myName();
+    document.getElementById('muyu-label-pt').innerText = ptName();
     const pme = document.getElementById('pts-label-me'); if (pme) pme.innerText = myName()+'的积分';
     const ppt = document.getElementById('pts-label-partner'); if (ppt) ppt.innerText = ptName()+'的积分';
 }
@@ -1040,28 +1068,42 @@ async function updateMyStatus(mood) {
     showToast('心情已同步 ✨');
 }
 
-// ── 想念 ──
-async function loadMissCount() {
-    const {data} = await db.from('lovedata').select('content').eq('type','miss_count_shared').maybeSingle();
-    document.getElementById('miss-count').innerText = data ? parseInt(data.content)||0 : 0;
+// ── 木鱼 ──
+async function loadMuyuCount() {
+    const {data:me} = await db.from('lovedata').select('content').eq('type','muyu_'+myId).maybeSingle();
+    const {data:pt} = await db.from('lovedata').select('content').eq('type','muyu_'+pid()).maybeSingle();
+    document.getElementById('muyu-me').innerText = me ? parseInt(me.content)||0 : 0;
+    document.getElementById('muyu-partner').innerText = pt ? parseInt(pt.content)||0 : 0;
 }
-async function sendMiss() {
-    for (let i=0;i<5;i++) setTimeout(()=>{
-        const h=document.createElement('div'); h.className='floating-heart'; h.innerHTML='❤️';
-        h.style.left=(Math.random()*60+20)+'%'; h.style.bottom='160px';
-        document.body.appendChild(h); setTimeout(()=>h.remove(),1500);
-    },i*130);
-    const ct='miss_count_shared';
-    const {data:cd}=await db.from('lovedata').select('content,id').eq('type',ct).maybeSingle();
-    const nc=(cd&&cd.content)?( parseInt(cd.content)||0)+1:1;
-    if(cd&&cd.id){
-        await db.from('lovedata').update({content:String(nc)}).eq('id',cd.id);
-    } else {
-        await db.from('lovedata').insert({type:ct,content:String(nc)});
+async function knockMuyu() {
+    // 动画
+    const btn = document.getElementById('muyu-btn');
+    btn.classList.remove('knock');
+    void btn.offsetWidth;
+    btn.classList.add('knock');
+    setTimeout(() => btn.classList.remove('knock'), 200);
+    // 声音
+    try {
+        const ctx = new (window.AudioContext||window.webkitAudioContext)();
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.connect(g); g.connect(ctx.destination);
+        o.type = 'sine'; o.frequency.value = 320;
+        g.gain.setValueAtTime(0.5, ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+0.4);
+        o.start(); o.stop(ctx.currentTime+0.4);
+    } catch(e){}
+    // 计数：先读当前值，再upsert
+    const type = 'muyu_'+myId;
+    const cur = parseInt(document.getElementById('muyu-me').innerText)||0;
+    const nc = cur + 1;
+    document.getElementById('muyu-me').innerText = nc; // 先更新UI
+    const {error} = await db.from('lovedata')
+        .upsert({type, content: String(nc)}, {onConflict: 'type'});
+    if(error) {
+        // upsert失败则fallback：删旧的再插新的
+        await db.from('lovedata').delete().eq('type', type);
+        await db.from('lovedata').insert({type, content: String(nc)});
     }
-    document.getElementById('miss-count').innerText=nc;
-    const tip=document.getElementById('miss-tip');
-    tip.innerText='❤️ 你们共想念了 '+nc+' 次'; setTimeout(()=>tip.innerText='',3000);
 }
 
 // ── 出发到达 ──
@@ -1474,14 +1516,17 @@ function initMapLazy(){
 }
 async function loadMapSpots(){
     const {data}=await db.from('mapspots').select('*');
+    // 列表始终加载
+    renderSpotList(data||[]);
+    // 地图标记只在地图已初始化时才加
+    if(!leafletMap || !data) return;
     mapMarkers.forEach(m=>leafletMap.removeLayer(m)); mapMarkers=[];
-    if(!data) return;
     data.forEach(s=>{
+        if(!s.lat||!s.lng) return;
         const m=L.marker([s.lat,s.lng],{icon:L.divIcon({className:'',html:'<div style="font-size:20px;">📍</div>',iconSize:[24,24],iconAnchor:[12,24]})}).addTo(leafletMap);
         m.bindPopup(`<b>${s.country_name}</b>${s.note?'<br>'+s.note:''}<br><small>${s.visited_at||''}</small>`);
         mapMarkers.push(m);
     });
-    renderSpotList(data);
 }
 async function saveSpot(){
     const name=document.getElementById('spot-name').value.trim();
@@ -1512,7 +1557,7 @@ function showSection(id,el){
     if(id==='poop'){renderCalendar();checkPoopWarning();}
     if(id==='life'){renderTodos();renderPtItems();loadPts();renderMessages();}
     if(id==='more'){
-        renderDiary();renderAnniversaries();
+        renderDiary();renderAnniversaries();loadMapSpots();
         // 恢复上次的子页面
         const lastSub=localStorage.getItem('last_sub_more');
         if(lastSub&&lastSub!=='diary-sub'){
