@@ -1,0 +1,1509 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>❤️ 我们的专属空间</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css"/>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --pink: #ff85a1;
+            --pink2: #ff5c8d;
+            --blue: #5b9cf6;
+            --gray: #9e9e9e;
+            --card: rgba(255,255,255,0.88);
+            --text: #3a3a3a;
+            --soft: #f9f0f3;
+            --border: rgba(255,133,161,0.15);
+        }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, 'PingFang SC', 'Noto Serif SC', sans-serif;
+            background: linear-gradient(160deg, #fff0f5 0%, #fce8f0 40%, #f0e8ff 100%);
+            min-height: 100vh;
+            color: var(--text);
+        }
+        body::before {
+            content: '';
+            position: fixed; inset: 0; z-index: 0;
+            background:
+                radial-gradient(ellipse at 10% 20%, rgba(255,133,161,0.12) 0%, transparent 60%),
+                radial-gradient(ellipse at 90% 80%, rgba(180,130,255,0.10) 0%, transparent 60%),
+                radial-gradient(ellipse at 50% 50%, rgba(255,200,220,0.08) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .app { width: 100%; max-width: 430px; margin: 0 auto; min-height: 100vh; padding-bottom: 80px; position: relative; z-index: 1; }
+
+        /* ── 底部导航 ── */
+        .nav {
+            display: flex; justify-content: space-around;
+            background: rgba(255,255,255,0.82);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            padding: 10px 0 16px;
+            position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+            width: 100%; max-width: 430px; z-index: 200;
+            box-shadow: 0 -1px 0 rgba(255,133,161,0.12), 0 -8px 32px rgba(255,133,161,0.08);
+            border-radius: 24px 24px 0 0;
+            border-top: 1px solid rgba(255,133,161,0.1);
+        }
+        .nav-item {
+            cursor: pointer; font-size: 10px; color: #c4a8b4;
+            display: flex; flex-direction: column; align-items: center; gap: 3px;
+            transition: all 0.25s; padding: 4px 10px; border-radius: 12px;
+            position: relative;
+        }
+        .nav-item .nav-icon { font-size: 22px; transition: transform 0.25s; }
+        .nav-item.active { color: var(--pink); }
+        .nav-item.active .nav-icon { transform: scale(1.15); }
+        .nav-item.active::after {
+            content: '';
+            position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%);
+            width: 4px; height: 4px; border-radius: 50%;
+            background: var(--pink);
+        }
+
+        /* ── 页面 ── */
+        .section { display: none; padding: 16px 14px; animation: fadeIn 0.3s ease; }
+        .section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+        /* ── 卡片 ── */
+        .card {
+            background: var(--card);
+            padding: 18px;
+            border-radius: 22px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 20px rgba(255,100,150,0.07), 0 1px 4px rgba(0,0,0,0.04);
+            border: 1px solid var(--border);
+            backdrop-filter: blur(10px);
+        }
+        .card-title {
+            font-size: 13px; font-weight: 700; color: #b07a8e;
+            letter-spacing: 0.04em; text-transform: uppercase;
+            margin-bottom: 14px; display: flex; align-items: center; gap: 6px;
+        }
+        .card-title::before { content: ''; width: 3px; height: 14px; background: linear-gradient(var(--pink), var(--pink2)); border-radius: 2px; }
+
+        /* ── 按钮 ── */
+        .btn {
+            border: none; border-radius: 14px; padding: 12px 16px;
+            font-weight: 700; cursor: pointer; font-size: 14px;
+            transition: all 0.2s; width: 100%;
+            letter-spacing: 0.02em;
+        }
+        .btn:active { transform: scale(0.97); }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--pink), var(--pink2));
+            color: white;
+            box-shadow: 0 4px 15px rgba(255,92,141,0.3);
+        }
+        .btn-primary:active { box-shadow: 0 2px 8px rgba(255,92,141,0.2); }
+        .btn-ghost { background: var(--soft); color: var(--pink); border: 1.5px solid var(--border); }
+        .btn-sm { padding: 7px 16px; border-radius: 20px; font-size: 12px; width: auto; }
+
+        /* ── 输入框 ── */
+        input, select, textarea {
+            padding: 11px 14px; border: 1.5px solid #f0dde5;
+            border-radius: 12px; outline: none; font-size: 14px;
+            width: 100%; background: rgba(255,255,255,0.9);
+            font-family: inherit; color: var(--text);
+            transition: border-color 0.2s;
+        }
+        input:focus, textarea:focus, select:focus { border-color: var(--pink); }
+        textarea { resize: none; }
+        .input-row { display: flex; gap: 8px; margin-bottom: 12px; }
+
+        /* ── 首页 Hero ── */
+        .hero {
+            background: linear-gradient(135deg, rgba(255,133,161,0.15), rgba(180,130,255,0.10));
+            border-radius: 26px;
+            padding: 20px 18px 16px;
+            margin-bottom: 12px;
+            border: 1px solid rgba(255,133,161,0.18);
+            position: relative; overflow: hidden;
+        }
+        .hero::after {
+            content: '❤';
+            position: absolute; right: -10px; top: -10px;
+            font-size: 80px; opacity: 0.04; pointer-events: none;
+        }
+        .hero-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+        .hero-date { font-size: 11px; color: #c4a0b0; }
+        .hero-edit-btn { background: none; border: 1px solid rgba(255,133,161,0.3); color: var(--pink); padding: 4px 10px; border-radius: 20px; font-size: 11px; cursor: pointer; }
+
+        .avatars-row { display: flex; justify-content: center; align-items: center; gap: 16px; }
+        .avatar-item { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+        .avatar-circle {
+            width: 72px; height: 72px; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 28px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+            border: 3px solid white;
+        }
+        .avatar-circle.me { background: linear-gradient(135deg, #74b3ff, #4a8de8); }
+        .avatar-circle.partner { background: linear-gradient(135deg, var(--pink), var(--pink2)); }
+        .avatar-name { font-size: 13px; font-weight: 700; color: var(--text); }
+        .avatar-status {
+            font-size: 11px; padding: 3px 10px; border-radius: 20px;
+            max-width: 90px; text-align: center; white-space: nowrap;
+            overflow: hidden; text-overflow: ellipsis;
+        }
+        .avatar-status.me { background: #e8f0fe; color: var(--blue); }
+        .avatar-status.partner { background: #fff0f5; color: var(--pink); }
+        .heart-connector { font-size: 28px; animation: heartbeat 2s ease-in-out infinite; }
+        @keyframes heartbeat { 0%,100%{transform:scale(1);} 50%{transform:scale(1.15);} }
+
+        /* ── 想念区 ── */
+        .action-row { display: flex; align-items: center; gap: 12px; margin-top: 4px; }
+        .heart-btn {
+            width: 80px; height: 80px; border-radius: 50%; border: none;
+            background: white;
+            box-shadow: 0 6px 20px rgba(255,133,161,0.25);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            cursor: pointer; position: relative; transition: transform 0.15s;
+            flex-shrink: 0;
+        }
+        .heart-btn:active { transform: scale(0.9); }
+        .miss-badge {
+            position: absolute; top: -4px; right: -4px;
+            background: linear-gradient(135deg, var(--pink), var(--pink2));
+            color: white; border-radius: 50%; width: 20px; height: 20px;
+            font-size: 10px; font-weight: 700;
+            display: flex; justify-content: center; align-items: center;
+            box-shadow: 0 2px 6px rgba(255,92,141,0.4);
+        }
+        .travel-col { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+        .travel-btn {
+            flex: 1; padding: 11px; border-radius: 14px; border: none;
+            font-size: 13px; font-weight: 700; cursor: pointer; transition: 0.15s;
+            text-align: center;
+        }
+        .travel-btn:active { transform: scale(0.97); }
+        .btn-depart { background: linear-gradient(135deg, #e8f4fd, #d0e8f8); color: #3a8fd4; }
+        .btn-arrive { background: linear-gradient(135deg, #e8fdf0, #d0f0e0); color: #2eaa6a; }
+        .travel-status { font-size: 11px; color: #c4a0b0; text-align: center; min-height: 16px; margin-top: 4px; }
+
+        /* ── 心情选择器 ── */
+        .mood-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .mood-btn {
+            padding: 10px 6px; border-radius: 14px; border: 1.5px solid #f0dde5;
+            background: white; cursor: pointer; font-size: 12px; text-align: center;
+            transition: all 0.2s; color: var(--text);
+        }
+        .mood-btn .mood-emoji { font-size: 20px; display: block; margin-bottom: 3px; }
+        .mood-btn.selected { border-color: var(--pink); background: #fff0f5; color: var(--pink); }
+        .mood-btn:active { transform: scale(0.95); }
+
+        /* ── 留言 ── */
+        .msg-list {
+            max-height: 280px; overflow-y: auto; margin-bottom: 12px;
+            padding-right: 2px;
+        }
+        .msg-list::-webkit-scrollbar { width: 3px; }
+        .msg-list::-webkit-scrollbar-track { background: transparent; }
+        .msg-list::-webkit-scrollbar-thumb { background: rgba(255,133,161,0.3); border-radius: 3px; }
+        .msg-bubble { display: flex; margin-bottom: 10px; align-items: flex-end; gap: 6px; }
+        .msg-bubble.mine { flex-direction: row-reverse; }
+        .bubble-wrap { max-width: 75%; }
+        .bubble-content {
+            padding: 9px 13px; border-radius: 18px;
+            font-size: 13px; line-height: 1.55; word-break: break-all;
+        }
+        .bubble-content.mine {
+            background: linear-gradient(135deg, var(--pink), var(--pink2));
+            color: white; border-bottom-right-radius: 5px;
+        }
+        .bubble-content.theirs {
+            background: white; color: var(--text);
+            border-bottom-left-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+        }
+        .bubble-name { font-size: 10px; color: #c4a8b4; margin-bottom: 3px; }
+        .bubble-time { font-size: 10px; color: #d4b8c4; margin-top: 3px; }
+        .msg-send-row { display: flex; gap: 8px; align-items: flex-end; }
+        .msg-send-row textarea { border-radius: 14px; }
+
+        /* ── 账单 ── */
+        .bill-list { list-style: none; }
+        .bill-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 11px 0; border-bottom: 1px solid rgba(255,133,161,0.1);
+            font-size: 13px;
+        }
+        .bill-item:last-child { border-bottom: none; }
+        .bill-name { font-weight: 600; }
+        .bill-meta { font-size: 11px; color: #c4a0b0; margin-top: 2px; }
+        .bill-amount { font-size: 15px; font-weight: 700; color: var(--pink); }
+        .bill-total-bar {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 12px 16px; background: linear-gradient(135deg, #fff0f5, #ffe8f0);
+            border-radius: 14px; margin-bottom: 14px;
+        }
+        .filter-section { margin-bottom: 12px; }
+        .filter-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+        .filter-row input[type="date"], .filter-row select { font-size: 12px; padding: 9px 10px; }
+        .filter-result {
+            background: linear-gradient(135deg, #fff0f5, #ffe8ef);
+            border-radius: 12px; padding: 10px 14px;
+            font-size: 13px; color: var(--pink); font-weight: 700;
+            text-align: center; display: none;
+        }
+
+        /* ── 许愿墙 ── */
+        .wish-list { display: flex; flex-direction: column; gap: 8px; }
+        .wish-item {
+            display: flex; justify-content: space-between; align-items: flex-start;
+            background: linear-gradient(135deg, #fffbf0, #fff8e8);
+            border-radius: 14px; padding: 12px 14px; gap: 10px;
+            border: 1px solid rgba(255,200,100,0.2);
+        }
+        .wish-text { font-size: 13px; flex: 1; line-height: 1.5; }
+        .wish-tag {
+            font-size: 10px; padding: 3px 9px; border-radius: 20px; color: white;
+            flex-shrink: 0; font-weight: 700;
+        }
+        .wish-tag-blue { background: linear-gradient(135deg, var(--blue), #3a7bd5); }
+        .wish-tag-pink { background: linear-gradient(135deg, var(--pink), var(--pink2)); }
+
+        /* ── 💩 日历 ── */
+        .poop-warning {
+            background: linear-gradient(135deg, #fff8e1, #fff3cd);
+            border: 1px solid rgba(255,193,7,0.3);
+            border-radius: 16px; padding: 12px 16px; margin-bottom: 12px;
+            font-size: 13px; color: #e65100; display: none;
+            font-weight: 600;
+        }
+        .cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+        .cal-nav-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: var(--pink); padding: 4px 8px; }
+        .cal-title-text { font-size: 16px; font-weight: 700; color: var(--text); }
+        .cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 4px; text-align: center; }
+        .cal-day-label { font-size: 10px; color: #c4a0b0; padding: 4px 0; font-weight: 700; }
+        .cal-day {
+            aspect-ratio: 1; border-radius: 50%;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            font-size: 12px; cursor: pointer; position: relative; transition: 0.15s;
+        }
+        .cal-day:hover { background: rgba(255,133,161,0.1); }
+        .cal-day.empty { cursor: default; }
+        .cal-day.today { background: rgba(255,133,161,0.15); font-weight: 700; color: var(--pink); }
+        .poop-dots { display: flex; gap: 2px; margin-top: 1px; }
+        .pdot { width: 5px; height: 5px; border-radius: 50%; }
+        .pdot-blue { background: var(--blue); }
+        .pdot-gray { background: var(--gray); }
+        .cal-legend { display: flex; gap: 16px; justify-content: center; margin-top: 14px; font-size: 11px; color: #c4a0b0; }
+        .cal-legend span { display: flex; align-items: center; gap: 5px; }
+        .poop-log-btn {
+            margin-top: 16px;
+            background: linear-gradient(135deg, #8B6914, #a0820e);
+            color: white; border: none; border-radius: 16px; padding: 14px;
+            width: 100%; font-size: 15px; font-weight: 700; cursor: pointer;
+            box-shadow: 0 4px 15px rgba(139,105,20,0.25);
+            transition: 0.2s;
+        }
+        .poop-log-btn:active { transform: scale(0.97); }
+
+        /* ── 待办 ── */
+        .tab-row { display: flex; gap: 6px; margin-bottom: 14px; background: rgba(255,220,230,0.2); border-radius: 14px; padding: 4px; }
+        .tab-btn { flex: 1; padding: 8px; border-radius: 10px; border: none; background: none; cursor: pointer; font-size: 13px; color: #c4a0b0; font-weight: 600; transition: 0.2s; }
+        .tab-btn.active { background: white; color: var(--pink); box-shadow: 0 2px 8px rgba(255,133,161,0.15); }
+        .todo-item { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-bottom: 1px solid rgba(255,133,161,0.08); }
+        .todo-item:last-child { border-bottom: none; }
+        .todo-check {
+            width: 24px; height: 24px; border-radius: 50%;
+            border: 2px solid #e8d0d8; cursor: pointer; flex-shrink: 0;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 12px; transition: 0.2s;
+        }
+        .todo-check.done-blue { background: var(--blue); border-color: var(--blue); color: white; }
+        .todo-check.done-gray { background: var(--gray); border-color: var(--gray); color: white; }
+        .todo-text { flex: 1; font-size: 14px; }
+        .todo-text.done { text-decoration: line-through; color: #c4a0b0; }
+        .todo-tag { font-size: 10px; padding: 2px 8px; border-radius: 10px; color: white; flex-shrink: 0; }
+        .tag-blue { background: var(--blue); }
+        .tag-gray { background: var(--gray); }
+
+        /* ── 积分 ── */
+        .pts-board { display: flex; gap: 10px; margin-bottom: 14px; }
+        .pts-card {
+            flex: 1; border-radius: 18px; padding: 16px 12px; text-align: center;
+            position: relative; overflow: hidden;
+        }
+        .pts-card.me-card { background: linear-gradient(135deg, #dceeff, #b8d8ff); }
+        .pts-card.pt-card { background: linear-gradient(135deg, #ffe8f0, #ffd0e0); }
+        .pts-card::after { content: '★'; position: absolute; right: -5px; bottom: -10px; font-size: 50px; opacity: 0.08; }
+        .pts-num { font-size: 32px; font-weight: 900; line-height: 1; }
+        .pts-num.blue { color: #3a7bd5; }
+        .pts-num.pink { color: var(--pink2); }
+        .pts-who { font-size: 11px; color: #8a9ab0; margin-top: 4px; font-weight: 600; }
+        .pts-use-btn {
+            margin-top: 8px; padding: 5px 12px; border-radius: 10px; border: none;
+            font-size: 11px; font-weight: 700; cursor: pointer;
+        }
+        .pts-use-btn.blue { background: #3a7bd5; color: white; }
+        .pts-use-btn.pink { background: var(--pink); color: white; }
+        .pts-item-row { display: flex; justify-content: space-between; align-items: center; padding: 11px 0; border-bottom: 1px solid rgba(255,133,161,0.08); }
+        .pts-item-row:last-child { border-bottom: none; }
+        .pts-earn-btn { padding: 6px 14px; border-radius: 10px; border: none; background: linear-gradient(135deg, var(--pink), var(--pink2)); color: white; font-size: 12px; font-weight: 700; cursor: pointer; }
+
+        /* ── 子标签 ── */
+        .sub-tabs { display: flex; gap: 6px; margin-bottom: 14px; overflow-x: auto; padding-bottom: 2px; }
+        .sub-tabs::-webkit-scrollbar { display: none; }
+        .sub-tab {
+            flex-shrink: 0; padding: 7px 16px; border-radius: 20px;
+            border: 1.5px solid rgba(255,133,161,0.2); background: white;
+            cursor: pointer; font-size: 12px; color: #c4a0b0; white-space: nowrap;
+            font-weight: 600; transition: 0.2s;
+        }
+        .sub-tab.active { border-color: var(--pink); color: var(--pink); background: #fff0f5; }
+        .sub-section { display: none; }
+        .sub-section.active { display: block; }
+
+        /* ── 日记 ── */
+        .diary-item { padding: 14px 0; border-bottom: 1px solid rgba(255,133,161,0.08); }
+        .diary-item:last-child { border-bottom: none; }
+        .diary-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+        .diary-author { font-size: 12px; font-weight: 700; }
+        .diary-author.blue { color: var(--blue); }
+        .diary-author.pink { color: var(--pink); }
+        .diary-date { font-size: 10px; color: #c4a0b0; }
+        .diary-text { font-size: 13px; line-height: 1.65; color: #5a4a52; }
+        .diary-img { width: 100%; border-radius: 14px; margin-top: 10px; max-height: 220px; object-fit: cover; }
+        .diary-audio { width: 100%; margin-top: 10px; }
+        .media-btns { display: flex; gap: 8px; margin-bottom: 10px; }
+        .media-pick-btn {
+            flex: 1; padding: 10px; border-radius: 12px;
+            border: 1.5px dashed rgba(255,133,161,0.3); background: rgba(255,240,245,0.5);
+            cursor: pointer; font-size: 12px; color: #c4a0b0; text-align: center;
+            transition: 0.2s;
+        }
+        .media-pick-btn.on { border-color: var(--pink); color: var(--pink); background: #fff0f5; }
+        #diary-preview img { width: 100%; border-radius: 12px; max-height: 160px; object-fit: cover; margin-bottom: 10px; }
+
+        /* ── 纪念日 ── */
+        .anni-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 14px 0; border-bottom: 1px solid rgba(255,133,161,0.08);
+        }
+        .anni-item:last-child { border-bottom: none; }
+        .anni-emoji { font-size: 28px; margin-right: 12px; }
+        .anni-info { flex: 1; }
+        .anni-name { font-size: 14px; font-weight: 700; }
+        .anni-date-text { font-size: 11px; color: #c4a0b0; margin-top: 2px; }
+        .anni-countdown {
+            text-align: right;
+            font-size: 14px; font-weight: 900; color: var(--pink);
+        }
+        .anni-sub { font-size: 10px; color: #c4a0b0; margin-top: 2px; }
+
+        /* ── 谁去 ── */
+        .roll-area { text-align: center; padding: 20px 0; }
+        #result-text { font-size: 36px; font-weight: 900; color: var(--pink); margin-bottom: 24px; min-height: 44px; }
+        .roll-btn {
+            background: linear-gradient(135deg, var(--pink), var(--pink2));
+            color: white; padding: 14px 44px; border-radius: 30px; border: none;
+            font-size: 16px; font-weight: 700; cursor: pointer;
+            box-shadow: 0 6px 20px rgba(255,92,141,0.35);
+            transition: 0.2s;
+        }
+        .roll-btn:active { transform: scale(0.96); }
+
+        /* ── 地图 ── */
+        /* 预览小地图 */
+        #map-preview { height: 180px; width: 100%; border-radius: 22px 22px 0 0; z-index: 1; pointer-events: none; }
+
+        /* 全屏地图 */
+        #map-fullscreen { position: fixed; inset: 0; z-index: 500; display: none; }
+        #map-fullscreen.open { display: block; }
+        #map { width: 100%; height: 100%; z-index: 1; }
+        .map-topbar {
+            position: absolute; top: 0; left: 0; right: 0; z-index: 10;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 48px 16px 14px;
+            background: linear-gradient(to bottom, rgba(255,240,245,0.95) 60%, transparent);
+            pointer-events: none;
+        }
+        .map-topbar > * { pointer-events: auto; }
+        .map-close-btn {
+            background: white; border: none; border-radius: 50%;
+            width: 40px; height: 40px; font-size: 18px; cursor: pointer;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+            display: flex; justify-content: center; align-items: center;
+        }
+        .map-add-btn {
+            position: absolute; bottom: 100px; right: 20px; z-index: 10;
+            width: 58px; height: 58px; border-radius: 50%; border: none;
+            background: linear-gradient(135deg, #ff85a1, #ff5c8d);
+            color: white; font-size: 26px; cursor: pointer;
+            box-shadow: 0 4px 20px rgba(255,92,141,0.45);
+            display: flex; justify-content: center; align-items: center;
+            transition: transform 0.15s;
+        }
+        .map-add-btn:active { transform: scale(0.92); }
+        .map-add-btn.adding { background: linear-gradient(135deg, #98d8a8, #5cb87a); box-shadow: 0 4px 20px rgba(92,184,122,0.4); }
+        .map-hint {
+            position: absolute; bottom: 168px; right: 16px; z-index: 10;
+            background: rgba(40,20,30,0.72); color: white;
+            padding: 6px 14px; border-radius: 20px; font-size: 12px;
+            backdrop-filter: blur(8px); display: none; white-space: nowrap;
+        }
+        .spot-item {
+            display: flex; justify-content: space-between; align-items: flex-start;
+            padding: 11px 0; border-bottom: 1px solid rgba(255,133,161,0.08);
+        }
+        .spot-item:last-child { border-bottom: none; }
+        .spot-name { font-size: 13px; font-weight: 600; }
+        .spot-meta { font-size: 11px; color: #c4a0b0; margin-top: 2px; }
+        .spot-del { background: none; border: none; font-size: 16px; cursor: pointer; color: rgba(255,133,161,0.5); padding: 2px 4px; }
+
+        /* ── 浮动心 ── */
+        .floating-heart { position: fixed; pointer-events: none; animation: fly 1.4s ease-out forwards; font-size: 24px; z-index: 9999; }
+        @keyframes fly { 0%{transform:translateY(0) scale(1);opacity:1;} 100%{transform:translateY(-280px) scale(0.3);opacity:0;} }
+
+        /* ── 弹窗 ── */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(60,20,40,0.35);
+            backdrop-filter: blur(8px);
+            z-index: 999; display: flex; justify-content: center; align-items: center;
+        }
+        .modal {
+            background: white; border-radius: 26px; padding: 28px 24px;
+            width: 320px; max-width: 90vw;
+            box-shadow: 0 24px 80px rgba(255,100,150,0.2);
+            max-height: 85vh; overflow-y: auto;
+        }
+        .modal-title { font-size: 18px; font-weight: 700; text-align: center; margin-bottom: 6px; }
+        .modal-sub { font-size: 12px; color: #c4a0b0; text-align: center; margin-bottom: 20px; }
+        .modal-field { margin-bottom: 12px; }
+        .modal-field label { font-size: 12px; color: #b07a8e; display: block; margin-bottom: 5px; font-weight: 600; }
+        .id-btn { width: 100%; padding: 14px; border-radius: 16px; border: none; font-size: 15px; font-weight: 700; cursor: pointer; margin-bottom: 10px; transition: 0.15s; }
+        .id-btn:active { transform: scale(0.97); }
+        .id-btn-blue { background: linear-gradient(135deg, #dceeff, #b8d8ff); color: #3a7bd5; }
+        .id-btn-gray { background: linear-gradient(135deg, #f0f0f0, #e0e0e0); color: #666; }
+        .modal-cancel { width: 100%; margin-top: 6px; background: none; border: none; color: #c4a0b0; font-size: 13px; cursor: pointer; padding: 8px; }
+
+        /* ── Toast ── */
+        .toast {
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            background: rgba(40,20,30,0.82); color: white;
+            padding: 10px 22px; border-radius: 30px; font-size: 13px;
+            z-index: 9999; white-space: nowrap;
+            backdrop-filter: blur(10px);
+            animation: toastIn 0.3s ease, toastOut 0.3s ease 2.4s forwards;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+        @keyframes toastIn { from{opacity:0;top:8px;} to{opacity:1;top:20px;} }
+        @keyframes toastOut { to{opacity:0;} }
+
+        /* ── 顶部小横幅 ── */
+        .anni-banner {
+            background: linear-gradient(135deg, var(--pink), var(--pink2));
+            color: white; border-radius: 16px; padding: 10px 16px;
+            margin-bottom: 12px; font-size: 13px; font-weight: 700;
+            display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 4px 16px rgba(255,92,141,0.25);
+            display: none;
+        }
+
+        /* ── 删除按钮 ── */
+        .del-btn { background:none; border:none; font-size:15px; cursor:pointer; opacity:0.35; padding:2px 4px; transition:opacity 0.2s; flex-shrink:0; }
+        .del-btn:hover { opacity:0.8; }
+        .del-btn:active { transform:scale(0.9); }
+        .divider { height: 1px; background: rgba(255,133,161,0.1); margin: 4px 0 14px; }
+    </style>
+</head>
+<body>
+
+<!-- 身份弹窗 -->
+<div class="modal-overlay" id="id-modal">
+    <div class="modal">
+        <div class="modal-title">👋 你是谁？</div>
+        <div class="modal-sub">第一次使用选一次，之后自动记住</div>
+        <button class="id-btn id-btn-blue" onclick="chooseIdentity('user1','blue')">📏 我是一米七</button>
+        <button class="id-btn id-btn-gray" onclick="chooseIdentity('user2','gray')">📏 我是一米五</button>
+    </div>
+</div>
+
+<!-- 昵称弹窗 -->
+<div class="modal-overlay" id="nickname-modal" style="display:none;">
+    <div class="modal">
+        <div class="modal-title">✏️ 给对方起昵称</div>
+        <div class="modal-sub" id="nickname-modal-sub">你叫对方什么？</div>
+        <div class="modal-field">
+            <label id="nickname-label">对方的昵称</label>
+            <input type="text" id="partner-nickname-input" placeholder="比如：大笨狗">
+        </div>
+        <button class="btn btn-primary" onclick="saveNickname()">保存</button>
+        <button class="modal-cancel" onclick="closeModal('nickname-modal')">取消</button>
+    </div>
+</div>
+
+<!-- 地点弹窗 -->
+<div class="modal-overlay" id="spot-modal" style="display:none;">
+    <div class="modal">
+        <div class="modal-title">📍 记录这个地方</div>
+        <div class="modal-sub" id="spot-coords"></div>
+        <div class="modal-field"><label>地点名称</label><input type="text" id="spot-name" placeholder="比如：北京天安门"></div>
+        <div class="modal-field"><label>去的日期</label><input type="date" id="spot-date"></div>
+        <div class="modal-field"><label>备注（可选）</label><input type="text" id="spot-note" placeholder="在这里发生了什么~"></div>
+        <button class="btn btn-primary" onclick="saveSpot()">✨ 点亮这里</button>
+        <button class="modal-cancel" onclick="closeModal('spot-modal')">取消</button>
+    </div>
+</div>
+
+<!-- 积分事项弹窗 -->
+<div class="modal-overlay" id="pt-item-modal" style="display:none;">
+    <div class="modal">
+        <div class="modal-title">⭐ 新增积分事项</div>
+        <div class="modal-sub">完成后可以获得积分</div>
+        <div class="modal-field"><label>事项名称</label><input type="text" id="pt-item-name" placeholder="比如：洗碗"></div>
+        <div class="modal-field"><label>可获积分</label><input type="number" id="pt-item-pts" placeholder="比如：10"></div>
+        <button class="btn btn-primary" onclick="savePtItem()">添加</button>
+        <button class="modal-cancel" onclick="closeModal('pt-item-modal')">取消</button>
+    </div>
+</div>
+
+<!-- 纪念日弹窗 -->
+<div class="modal-overlay" id="anni-modal" style="display:none;">
+    <div class="modal">
+        <div class="modal-title">🗓️ 添加纪念日</div>
+        <div class="modal-field"><label>名称</label><input type="text" id="anni-title" placeholder="比如：在一起纪念日"></div>
+        <div class="modal-field"><label>日期</label><input type="date" id="anni-date"></div>
+        <div class="modal-field"><label>类型</label>
+            <select id="anni-type">
+                <option value="love">💕 恋爱纪念日</option>
+                <option value="birth">🎂 生日</option>
+                <option value="other">⭐ 其他</option>
+            </select>
+        </div>
+        <button class="btn btn-primary" onclick="saveAnniversary()">保存</button>
+        <button class="modal-cancel" onclick="closeModal('anni-modal')">取消</button>
+    </div>
+</div>
+
+<div class="app">
+
+    <!-- ══════════════ 首页 ══════════════ -->
+    <div id="home" class="section active">
+
+        <!-- 纪念日横幅 -->
+        <div class="anni-banner" id="anni-banner">
+            <span id="anni-banner-text"></span>
+            <span style="font-size:18px;">🎉</span>
+        </div>
+
+        <!-- Hero 双人状态 -->
+        <div class="hero">
+            <div class="hero-top">
+                <div class="hero-date" id="hero-date"></div>
+                <button class="hero-edit-btn" onclick="openNicknameModal()">✏️ 改称呼</button>
+            </div>
+            <div class="avatars-row">
+                <div class="avatar-item">
+                    <div class="avatar-circle me">😊</div>
+                    <div class="avatar-name" id="label-me">我</div>
+                    <div class="avatar-status me" id="status-me">...</div>
+                </div>
+                <div class="heart-connector">❤️</div>
+                <div class="avatar-item">
+                    <div class="avatar-circle partner">🥰</div>
+                    <div class="avatar-name" id="label-partner">对方</div>
+                    <div class="avatar-status partner" id="status-partner">...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 想念 + 出发到达 -->
+        <div class="card">
+            <div class="card-title">互动</div>
+            <div class="action-row">
+                <button class="heart-btn" onclick="sendMiss()">
+                    <div style="font-size:32px;">❤️</div>
+                    <span style="color:var(--pink);font-size:9px;font-weight:700;margin-top:2px;">想念</span>
+                    <div class="miss-badge" id="miss-count">0</div>
+                </button>
+                <div class="travel-col">
+                    <button class="travel-btn btn-depart" onclick="sendTravel('depart')">🚗 出发了</button>
+                    <button class="travel-btn btn-arrive" onclick="sendTravel('arrive')">🏠 到达了</button>
+                </div>
+            </div>
+            <div class="travel-status" id="travel-status"></div>
+            <div id="miss-tip" style="font-size:11px;color:#c4a0b0;text-align:center;min-height:14px;margin-top:2px;"></div>
+        </div>
+
+        <!-- 心情 -->
+        <div class="card">
+            <div class="card-title">我的心情</div>
+            <div class="mood-grid" id="mood-grid">
+                <button class="mood-btn" onclick="selectMood(this,'开心 🌟')"><span class="mood-emoji">🌟</span>开心</button>
+                <button class="mood-btn" onclick="selectMood(this,'委屈 🥺')"><span class="mood-emoji">🥺</span>委屈</button>
+                <button class="mood-btn" onclick="selectMood(this,'无聊 🥱')"><span class="mood-emoji">🥱</span>无聊</button>
+                <button class="mood-btn" onclick="selectMood(this,'有点累 🔋')"><span class="mood-emoji">🔋</span>有点累</button>
+                <button class="mood-btn" onclick="selectMood(this,'超级想你 ☁️')"><span class="mood-emoji">☁️</span>想你</button>
+                <button class="mood-btn" onclick="selectMood(this,'生气 😤')"><span class="mood-emoji">😤</span>生气</button>
+            </div>
+        </div>
+
+        <!-- 换背景 -->
+        <div style="text-align:center;padding-bottom:6px;display:flex;justify-content:center;gap:10px;">
+            <button onclick="document.getElementById('bg-input').click()" style="background:none;border:1px solid rgba(255,133,161,0.3);color:#c4a0b0;padding:6px 18px;border-radius:20px;font-size:11px;cursor:pointer;">📷 更换背景图</button>
+            <button onclick="resetIdentity()" style="background:none;border:1px solid rgba(255,133,161,0.3);color:#c4a0b0;padding:6px 18px;border-radius:20px;font-size:11px;cursor:pointer;">🔄 切换身份</button>
+            <input type="file" id="bg-input" accept="image/*" style="display:none;" onchange="changeBg(this)">
+        </div>
+    </div>
+
+    <!-- ══════════════ 记账 ══════════════ -->
+    <div id="bill" class="section">
+        <div class="bill-total-bar">
+            <span style="font-size:13px;color:#b07a8e;font-weight:600;">总支出</span>
+            <span id="total-amount" style="font-size:22px;font-weight:900;color:var(--pink);">¥0.00</span>
+        </div>
+
+        <div class="card">
+            <div class="card-title">记一笔</div>
+            <div class="input-row">
+                <input type="text" id="bill-name" placeholder="项目名称" onkeydown="if(event.key==='Enter')document.getElementById('bill-amount').focus()">
+                <input type="number" id="bill-amount" placeholder="金额" style="max-width:100px;" onkeydown="if(event.key==='Enter')addBill()">
+            </div>
+            <button class="btn btn-primary" onclick="addBill()">记账</button>
+        </div>
+
+        <div class="card">
+            <div class="card-title">筛选统计</div>
+            <div class="filter-section">
+                <div class="filter-row">
+                    <input type="date" id="filter-start" style="flex:1;">
+                    <span style="color:#c4a0b0;font-size:12px;flex-shrink:0;">至</span>
+                    <input type="date" id="filter-end" style="flex:1;">
+                </div>
+                <div class="filter-row" style="margin-bottom:10px;">
+                    <select id="filter-who" style="flex:1;">
+                        <option value="all">👫 双人合计</option>
+                        <option value="me">🙋 只看我</option>
+                        <option value="partner">👤 只看对方</option>
+                    </select>
+                    <button class="btn btn-primary btn-sm" onclick="filterBills()" style="flex:0 0 auto;">查询</button>
+                </div>
+                <div class="filter-result" id="filter-result"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">账单明细</div>
+            <ul class="bill-list" id="bill-list">
+                <li style="text-align:center;color:#c4a0b0;padding:20px;font-size:13px;">暂无账单</li>
+            </ul>
+        </div>
+
+        <div class="card">
+            <div class="card-title">许愿墙 🌟</div>
+            <div class="input-row" style="margin-bottom:12px;">
+                <input type="text" id="wish-input" placeholder="我想要..." onkeydown="if(event.key==='Enter')addWish()">
+                <button class="btn btn-primary" style="width:auto;padding:0 14px;" onclick="addWish()">许愿</button>
+            </div>
+            <div class="wish-list" id="wish-list">
+                <div style="text-align:center;color:#c4a0b0;font-size:13px;padding:12px;">还没有心愿~</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════ 💩了没 ══════════════ -->
+    <div id="poop" class="section">
+        <div class="poop-warning" id="poop-warning"></div>
+        <div class="card">
+            <div class="cal-header">
+                <button class="cal-nav-btn" onclick="changeMonth(-1)">‹</button>
+                <span class="cal-title-text" id="cal-title"></span>
+                <button class="cal-nav-btn" onclick="changeMonth(1)">›</button>
+            </div>
+            <div class="cal-grid" id="cal-grid"></div>
+            <div class="cal-legend">
+                <span><span style="width:7px;height:7px;display:inline-block;border-radius:50%;background:var(--blue);"></span><span id="legend-u1">一米七</span></span>
+                <span><span style="width:7px;height:7px;display:inline-block;border-radius:50%;background:var(--gray);"></span><span id="legend-u2">一米五</span></span>
+                <span style="color:#e0c8d0;">· 点日期可切换</span>
+            </div>
+            <button class="poop-log-btn" onclick="logPoopToday()">💩 今天拉了！</button>
+        </div>
+    </div>
+
+    <!-- ══════════════ 生活（待办+积分+留言） ══════════════ -->
+    <div id="life" class="section">
+
+        <!-- 待办 -->
+        <div class="card">
+            <div class="card-title">待办</div>
+            <div class="tab-row">
+                <button class="tab-btn active" onclick="switchTodoTab('fixed',this)">📌 每日固定</button>
+                <button class="tab-btn" onclick="switchTodoTab('today',this)">📅 今日临时</button>
+            </div>
+            <div class="input-row">
+                <input type="text" id="todo-input" placeholder="添加待办..." onkeydown="if(event.key==='Enter')addTodo()">
+                <button class="btn btn-primary" style="width:auto;padding:0 14px;" onclick="addTodo()">添加</button>
+            </div>
+            <div id="todo-list"></div>
+        </div>
+
+        <!-- 积分 -->
+        <div class="pts-board">
+            <div class="pts-card me-card">
+                <div class="pts-num blue" id="pts-me">0</div>
+                <div class="pts-who" id="pts-label-me">我的积分</div>
+                <button class="pts-use-btn blue" onclick="usePoints()">使用30分</button>
+            </div>
+            <div class="pts-card pt-card">
+                <div class="pts-num pink" id="pts-partner">0</div>
+                <div class="pts-who" id="pts-label-partner">对方积分</div>
+            </div>
+        </div>
+        <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+                <div class="card-title" style="margin-bottom:0;">积分事项</div>
+                <button class="btn btn-primary btn-sm" onclick="openModal('pt-item-modal')">+ 新增</button>
+            </div>
+            <div id="pt-item-list"><div style="text-align:center;color:#c4a0b0;font-size:13px;padding:16px;">还没有积分事项~</div></div>
+        </div>
+
+        <!-- 留言板 -->
+        <div class="card">
+            <div class="card-title">留言板</div>
+            <div class="msg-list" id="msg-list">
+                <div style="text-align:center;color:#c4a0b0;font-size:13px;padding:20px;">加载中...</div>
+            </div>
+            <div class="msg-send-row">
+                <textarea id="msg-input" rows="2" placeholder="说点什么... (Ctrl+Enter发送)" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter')sendMessage()"></textarea>
+                <button class="btn btn-primary" style="width:auto;padding:0 16px;align-self:flex-end;height:44px;" onclick="sendMessage()">发送</button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ══════════════ 更多 ══════════════ -->
+    <div id="more" class="section">
+        <div class="sub-tabs">
+            <div class="sub-tab active" onclick="switchSub('more','diary-sub',this)">📖 日记</div>
+            <div class="sub-tab" onclick="switchSub('more','anni-sub',this)">🗓️ 纪念日</div>
+            <div class="sub-tab" onclick="switchSub('more','roll-sub',this)">🎲 谁去</div>
+            <div class="sub-tab" onclick="switchSub('more','map-sub',this);setTimeout(initPreviewMap,100)">🌍 地图</div>
+        </div>
+
+        <!-- 日记 -->
+        <div id="diary-sub" class="sub-section active">
+            <div class="card">
+                <div class="card-title">写日记</div>
+                <textarea id="diary-text" rows="3" placeholder="记录今天的心情和点滴..." style="margin-bottom:10px;"></textarea>
+                <div id="diary-preview"></div>
+                <div class="media-btns">
+                    <label class="media-pick-btn" id="img-pick-btn">
+                        📷 添加图片
+                        <input type="file" accept="image/*" style="display:none;" onchange="handleDiaryImg(this)">
+                    </label>
+                    <div class="media-pick-btn" id="audio-pick-btn" onclick="toggleRecord()">🎙️ <span id="record-label">录音</span></div>
+                </div>
+                <button class="btn btn-primary" onclick="saveDiary()">发布日记</button>
+            </div>
+            <div class="card">
+                <div class="card-title">日记列表</div>
+                <div id="diary-list"><div style="text-align:center;color:#c4a0b0;font-size:13px;padding:20px;">还没有日记~</div></div>
+            </div>
+        </div>
+
+        <!-- 纪念日 -->
+        <div id="anni-sub" class="sub-section">
+            <div class="card">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+                    <div class="card-title" style="margin-bottom:0;">重要日子</div>
+                    <button class="btn btn-primary btn-sm" onclick="openModal('anni-modal')">+ 添加</button>
+                </div>
+                <div id="anni-list"><div style="text-align:center;color:#c4a0b0;font-size:13px;padding:20px;">还没有纪念日~</div></div>
+            </div>
+        </div>
+
+        <!-- 谁去 -->
+        <div id="roll-sub" class="sub-section">
+            <div class="card">
+                <div class="card-title">谁去拿外卖</div>
+                <div class="roll-area">
+                    <div id="result-text">等待开奖</div>
+                    <button class="roll-btn" onclick="startRoll()">🎲 开始随机</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 地图 -->
+        <div id="map-sub" class="sub-section">
+            <div class="card" style="padding:0;overflow:hidden;cursor:pointer;" onclick="openFullMap()">
+                <div id="map-preview"></div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;">
+                    <div class="card-title" style="margin-bottom:0;">我们去过的地方</div>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span style="font-size:12px;color:var(--pink);font-weight:700;">展开 →</span>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">足迹列表 <span id="spot-count" style="color:var(--pink);font-size:13px;">0</span></div>
+                <div id="spot-list"><div style="text-align:center;color:#c4a0b0;font-size:13px;padding:12px;">还没有足迹~</div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 全屏地图覆盖层 -->
+    <div id="map-fullscreen">
+        <div id="map"></div>
+        <div class="map-topbar">
+            <button class="map-close-btn" onclick="closeFullMap()">✕</button>
+            <span style="font-size:13px;font-weight:700;color:#3a3a3a;" id="map-mode-tip">浏览地图</span>
+<span></span>
+        </div>
+        <div class="map-hint" id="map-hint">👆 点击地图上任意位置</div>
+        <button class="map-add-btn" id="map-add-btn" onclick="toggleAddMode()">📍</button>
+    </div>
+
+    <!-- 底部导航 -->
+    <div class="nav">
+        <div class="nav-item active" onclick="showSection('home',this)"><span class="nav-icon">🏠</span><span>首页</span></div>
+        <div class="nav-item" onclick="showSection('bill',this)"><span class="nav-icon">💰</span><span>记账</span></div>
+        <div class="nav-item" onclick="showSection('poop',this)"><span class="nav-icon">💩</span><span>了没</span></div>
+        <div class="nav-item" onclick="showSection('life',this)"><span class="nav-icon">🎯</span><span>生活</span></div>
+        <div class="nav-item" onclick="showSection('more',this)"><span class="nav-icon">🌸</span><span>更多</span></div>
+    </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://aurmmgsajdzceexxmmsy.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF1cm1tZ3NhamR6Y2VleHhtbXN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwMjExMjksImV4cCI6MjA4ODU5NzEyOX0.aJD3OSzuhZUnC-G6uVb69QiegRTdZbewgj5-Do6ZVPc';
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ── 身份 ──
+let myId = localStorage.getItem('my_id') || '';
+let myColor = localStorage.getItem('my_color') || '';
+const pid = () => myId === 'user1' ? 'user2' : 'user1';
+const myBase = () => myId === 'user1' ? '一米七' : '一米五';
+const ptBase = () => myId === 'user1' ? '一米五' : '一米七';
+let ptNick = localStorage.getItem('pt_nick_' + myId) || '';
+const myName = () => localStorage.getItem('my_name_from_partner') || myBase();
+const ptName = () => ptNick || ptBase();
+
+function chooseIdentity(id, color) {
+    myId = id; myColor = color;
+    localStorage.setItem('my_id', id); localStorage.setItem('my_color', color);
+    closeModalEl('id-modal'); init();
+}
+window.onload = () => { if (myId) { closeModalEl('id-modal'); init(); } };
+
+async function init() {
+    // 日期
+    const now = new Date();
+    document.getElementById('hero-date').innerText = now.toLocaleDateString('zh-CN', {month:'long',day:'numeric',weekday:'short'});
+
+    // 背景默认使用CSS渐变，用户手动换背景时才覆盖
+
+    requestNotifPerm();
+    await loadNicknames();
+    loadMissCount(); fetchMyStatus(); fetchPartnerStatus(); fetchTravelStatus();
+    renderMessages(); renderBills(); renderWishes();
+    renderCalendar(); checkPoopWarning();
+    renderTodos(); renderPtItems(); loadPts();
+    renderAnniversaries(); renderDiary();
+    checkAnniversaryBanner();
+
+    setInterval(() => { fetchPartnerStatus(); fetchTravelStatus(); loadMissCount(); }, 5000);
+
+    db.channel('msgs').on('postgres_changes', {event:'INSERT',schema:'public',table:'Messages'}, p => {
+        if (p.new.sender !== myId) { showToast('💬 ' + ptName() + '：' + p.new.content); pushNotif(ptName() + ' 给你留言了', p.new.content); }
+        renderMessages();
+    }).subscribe();
+
+    db.channel('love').on('postgres_changes', {event:'*',schema:'public',table:'LoveData'}, p => {
+        if (!p.new) return;
+        if (p.new.type === 'miss_' + myId) { showToast('❤️ ' + ptName() + ' 想你了！'); pushNotif(ptName() + ' 想你了', ''); loadMissCount(); }
+        if (p.new.type === 'travel_' + myId) { const msg = p.new.content==='depart'?ptName()+' 出发啦 🚗':ptName()+' 到家了 🏠'; showToast(msg); pushNotif(msg,''); playBeep(); }
+        fetchMyStatus(); fetchPartnerStatus();
+    }).subscribe();
+
+    db.channel('profiles').on('postgres_changes', {event:'*',schema:'public',table:'Profiles'}, () => loadNicknames()).subscribe();
+}
+
+// ── 昵称（只能给对方起）──
+async function loadNicknames() {
+    const {data:my} = await db.from('Profiles').select('partner_nickname').eq('user_id',myId).maybeSingle();
+    if (my?.partner_nickname) { ptNick = my.partner_nickname; localStorage.setItem('pt_nick_'+myId, ptNick); }
+    const {data:pt} = await db.from('Profiles').select('partner_nickname').eq('user_id',pid()).maybeSingle();
+    if (pt?.partner_nickname) localStorage.setItem('my_name_from_partner', pt.partner_nickname);
+    updateNickUI();
+}
+function updateNickUI() {
+    document.getElementById('label-me').innerText = myName();
+    document.getElementById('label-partner').innerText = ptName();
+    document.getElementById('legend-u1').innerText = myId==='user1' ? myName() : ptName();
+    document.getElementById('legend-u2').innerText = myId==='user2' ? myName() : ptName();
+    const pme = document.getElementById('pts-label-me'); if (pme) pme.innerText = myName()+'的积分';
+    const ppt = document.getElementById('pts-label-partner'); if (ppt) ppt.innerText = ptName()+'的积分';
+}
+function openNicknameModal() {
+    document.getElementById('partner-nickname-input').value = ptNick || '';
+    document.getElementById('nickname-label').innerText = '你叫 ' + ptBase() + ' 什么？';
+    openModal('nickname-modal');
+}
+async function saveNickname() {
+    const n = document.getElementById('partner-nickname-input').value.trim();
+    if (!n) { showToast('请输入昵称哦'); return; }
+    ptNick = n; localStorage.setItem('pt_nick_'+myId, n);
+    const {data} = await db.from('Profiles').select('id').eq('user_id',myId).maybeSingle();
+    if (data) await db.from('Profiles').update({partner_nickname:n,updated_at:new Date().toISOString()}).eq('user_id',myId);
+    else await db.from('Profiles').insert({user_id:myId,partner_nickname:n});
+    closeModal('nickname-modal'); updateNickUI(); showToast('昵称已更新 ✨');
+}
+
+// ── 工具 ──
+function requestNotifPerm() { if ('Notification' in window && Notification.permission==='default') Notification.requestPermission(); }
+function pushNotif(title,body) { if ('Notification' in window && Notification.permission==='granted') new Notification(title,{body}); }
+function playBeep() {
+    try {
+        const ctx = new (window.AudioContext||window.webkitAudioContext)();
+        const o=ctx.createOscillator(), g=ctx.createGain();
+        o.connect(g); g.connect(ctx.destination);
+        o.frequency.value=880; o.type='sine';
+        g.gain.setValueAtTime(0.3,ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.6);
+        o.start(); o.stop(ctx.currentTime+0.6);
+    } catch(e){}
+}
+function showToast(msg) {
+    const t=document.createElement('div'); t.className='toast'; t.innerText=msg;
+    document.body.appendChild(t); setTimeout(()=>t.remove(),3000);
+}
+function openModal(id) { document.getElementById(id).style.display='flex'; }
+function closeModal(id) { document.getElementById(id).style.display='none'; }
+function closeModalEl(id) { document.getElementById(id).style.display='none'; }
+
+// ── 心情 ──
+let selectedMood = '';
+function selectMood(btn, mood) {
+    document.querySelectorAll('.mood-btn').forEach(b=>b.classList.remove('selected'));
+    btn.classList.add('selected'); selectedMood = mood;
+    setTimeout(() => updateMyStatus(mood), 300);
+}
+async function fetchMyStatus() {
+    const {data} = await db.from('LoveData').select('content').eq('type','status_'+myId).maybeSingle();
+    if (data) document.getElementById('status-me').innerText = data.content;
+}
+async function fetchPartnerStatus() {
+    const {data} = await db.from('LoveData').select('content').eq('type','status_'+pid()).maybeSingle();
+    document.getElementById('status-partner').innerText = data ? data.content : '暂无';
+}
+async function updateMyStatus(mood) {
+    const type = 'status_'+myId;
+    const {data} = await db.from('LoveData').select('id').eq('type',type).maybeSingle();
+    if (data) await db.from('LoveData').update({content:mood}).eq('type',type);
+    else await db.from('LoveData').insert({type,content:mood});
+    document.getElementById('status-me').innerText = mood;
+    showToast('心情已同步 ✨');
+}
+
+// ── 想念 ──
+async function loadMissCount() {
+    const {data} = await db.from('LoveData').select('content').eq('type','miss_count_'+pid()).maybeSingle();
+    document.getElementById('miss-count').innerText = data ? parseInt(data.content)||0 : 0;
+}
+async function sendMiss() {
+    for (let i=0;i<5;i++) setTimeout(()=>{
+        const h=document.createElement('div'); h.className='floating-heart'; h.innerHTML='❤️';
+        h.style.left=(Math.random()*60+20)+'%'; h.style.bottom='160px';
+        document.body.appendChild(h); setTimeout(()=>h.remove(),1500);
+    },i*130);
+    const ct='miss_count_'+pid();
+    const {data:cd}=await db.from('LoveData').select('content,id').eq('type',ct).maybeSingle();
+    const nc=cd?(parseInt(cd.content)||0)+1:1;
+    if(cd) await db.from('LoveData').update({content:String(nc)}).eq('type',ct);
+    else await db.from('LoveData').insert({type:ct,content:String(nc)});
+    const mt='miss_'+pid();
+    const {data:md}=await db.from('LoveData').select('id').eq('type',mt).maybeSingle();
+    if(md) await db.from('LoveData').update({content:new Date().toISOString()}).eq('type',mt);
+    else await db.from('LoveData').insert({type:mt,content:new Date().toISOString()});
+    document.getElementById('miss-count').innerText=nc;
+    const tip=document.getElementById('miss-tip');
+    tip.innerText='已发送给 '+ptName()+' 💕'; setTimeout(()=>tip.innerText='',3000);
+}
+
+// ── 出发到达 ──
+async function sendTravel(type) {
+    const tt='travel_'+pid();
+    const {data}=await db.from('LoveData').select('id').eq('type',tt).maybeSingle();
+    if(data) await db.from('LoveData').update({content:type}).eq('type',tt);
+    else await db.from('LoveData').insert({type:tt,content:type});
+    showToast('已通知 '+ptName()+' 你'+(type==='depart'?'出发':'到达')+'了 '+(type==='depart'?'🚗':'🏠'));
+    fetchTravelStatus();
+}
+async function fetchTravelStatus() {
+    const {data}=await db.from('LoveData').select('content').eq('type','travel_'+myId).maybeSingle();
+    const el=document.getElementById('travel-status');
+    el.innerText=data?(data.content==='depart'?ptName()+' 已出发 🚗':ptName()+' 已到达 🏠'):'';
+}
+
+// ── 留言 ──
+async function renderMessages() {
+    const {data}=await db.from('Messages').select('*').order('created_at',{ascending:true}).limit(60);
+    const list=document.getElementById('msg-list');
+    if(!data||!data.length){list.innerHTML='<div style="text-align:center;color:#c4a0b0;font-size:13px;padding:20px;">还没有留言~</div>';return;}
+    list.innerHTML=data.map(m=>{
+        const mine=m.sender===myId;
+        const name=mine?myName():ptName();
+        const time=new Date(m.created_at).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
+        return `<div class="msg-bubble ${mine?'mine':''}"><div class="bubble-wrap">${!mine?`<div class="bubble-name">${name}</div>`:''}<div class="bubble-content ${mine?'mine':'theirs'}">${m.content}</div><div style="display:flex;justify-content:${mine?'flex-end':'flex-start'};align-items:center;gap:6px;margin-top:2px;">${mine?`<button class="del-btn" style="font-size:11px;padding:0;" onclick="deleteMessage(${m.id})">🗑</button>`:''}<span class="bubble-time">${time}</span></div></div></div>`;
+    }).join('');
+    list.scrollTop=list.scrollHeight;
+}
+async function sendMessage() {
+    const input=document.getElementById('msg-input');
+    const c=input.value.trim(); if(!c||!myId) return;
+    await db.from('Messages').insert({sender:myId,content:c});
+    input.value=''; renderMessages();
+}
+
+// ── 记账 ──
+async function addBill() {
+    const name=document.getElementById('bill-name').value.trim();
+    const amt=document.getElementById('bill-amount').value;
+    if(!name||!amt) return;
+    await db.from('BillData').insert({name,amount:parseFloat(amt),user_id:myId});
+    document.getElementById('bill-name').value=''; document.getElementById('bill-amount').value='';
+    renderBills(); showToast('记账成功 💰');
+}
+async function renderBills() {
+    const {data}=await db.from('BillData').select('*').order('created_at',{ascending:false});
+    const list=document.getElementById('bill-list');
+    if(!data||!data.length){list.innerHTML='<li style="text-align:center;color:#c4a0b0;padding:20px;font-size:13px;">暂无账单</li>';document.getElementById('total-amount').innerText='¥0.00';return;}
+    let total=0;
+    list.innerHTML=data.map(item=>{
+        total+=item.amount;
+        const date=new Date(item.created_at).toLocaleDateString('zh-CN',{month:'2-digit',day:'2-digit'});
+        const who=item.user_id===myId?myName():ptName();
+        const canDel = item.user_id === myId;
+        return `<li class="bill-item"><div><div class="bill-name">${item.name}</div><div class="bill-meta">${date} · ${who}</div></div><div style="display:flex;align-items:center;gap:8px;"><div class="bill-amount">¥${item.amount.toFixed(2)}</div>${canDel?`<button class="del-btn" onclick="deleteBill(${item.id})">🗑</button>`:''}</div></li>`;
+    }).join('');
+    document.getElementById('total-amount').innerText=`¥${total.toFixed(2)}`;
+}
+async function filterBills() {
+    const s=document.getElementById('filter-start').value;
+    const e=document.getElementById('filter-end').value;
+    const who=document.getElementById('filter-who').value;
+    if(!s||!e){showToast('请选择起止日期');return;}
+    let q=db.from('BillData').select('amount,user_id').gte('created_at',s).lte('created_at',e+'T23:59:59');
+    if(who==='me') q=q.eq('user_id',myId);
+    else if(who==='partner') q=q.eq('user_id',pid());
+    const {data}=await q;
+    const total=data?data.reduce((s,i)=>s+i.amount,0):0;
+    const label=who==='all'?'双人':who==='me'?myName():ptName();
+    const el=document.getElementById('filter-result');
+    el.innerText=`${label}  ${s} ~ ${e}  共消费 ¥${total.toFixed(2)}`; el.style.display='block';
+}
+
+// ── 许愿 ──
+async function addWish() {
+    const c=document.getElementById('wish-input').value.trim(); if(!c) return;
+    await db.from('Wishes').insert({user_id:myId,content:c});
+    document.getElementById('wish-input').value=''; renderWishes(); showToast('心愿已许下 🌟');
+}
+async function renderWishes() {
+    const {data}=await db.from('Wishes').select('*').order('created_at',{ascending:false});
+    const list=document.getElementById('wish-list');
+    if(!data||!data.length){list.innerHTML='<div style="text-align:center;color:#c4a0b0;font-size:13px;padding:12px;">还没有心愿~</div>';return;}
+    list.innerHTML=data.map(w=>{
+        const mine=w.user_id===myId;
+        const name=mine?myName():ptName();
+        const tc=(mine?myId:pid())==='user1'?'wish-tag-blue':'wish-tag-pink';
+        const done=!!w.fulfilled;
+        return `<div class="wish-item" style="${done?'opacity:0.5;':''}">`+
+            `<div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">`+
+            `<div onclick="toggleWish(${w.id},${done})" style="width:20px;height:20px;border-radius:50%;border:2px solid ${done?'#98d8a8':'#e8d0d8'};background:${done?'#98d8a8':'white'};display:flex;justify-content:center;align-items:center;cursor:pointer;flex-shrink:0;font-size:11px;">${done?'✓':''}</div>`+
+            `</div>`+
+            `<div class="wish-text" style="${done?'text-decoration:line-through;':''}">${w.content}</div>`+
+            `<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;"><span class="wish-tag ${tc}">${name}</span>${mine?`<button class="del-btn" onclick="deleteWish(${w.id})">🗑</button>`:''}</div>`+
+            `</div>`;
+    }).join('');
+}
+async function toggleWish(id, done){
+    await db.from('Wishes').update({fulfilled: !done}).eq('id',id);
+    renderWishes();
+    if(!done) showToast('心愿达成了 🎉');
+}
+
+// ── 💩 日历 ──
+let calY=new Date().getFullYear(), calM=new Date().getMonth();
+function changeMonth(d){calM+=d;if(calM<0){calM=11;calY--;}if(calM>11){calM=0;calY++;}renderCalendar();}
+async function renderCalendar() {
+    const pad=n=>String(n).padStart(2,'0');
+    const {data}=await db.from('PoopLog').select('*').gte('log_date',`${calY}-${pad(calM+1)}-01`).lte('log_date',`${calY}-${pad(calM+1)}-31`);
+    const lm={}; if(data) data.forEach(r=>{if(!lm[r.log_date])lm[r.log_date]=[];lm[r.log_date].push(r.user_id);});
+    const months=['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
+    document.getElementById('cal-title').innerText=`${calY}年 ${months[calM]}`;
+    const today=new Date(),fd=new Date(calY,calM,1).getDay(),dim=new Date(calY,calM+1,0).getDate();
+    let html=['日','一','二','三','四','五','六'].map(d=>`<div class="cal-day-label">${d}</div>`).join('');
+    for(let i=0;i<fd;i++) html+='<div class="cal-day empty"></div>';
+    for(let d=1;d<=dim;d++){
+        const ds=`${calY}-${pad(calM+1)}-${pad(d)}`;
+        const isT=d===today.getDate()&&calM===today.getMonth()&&calY===today.getFullYear();
+        const logs=lm[ds]||[];
+        html+=`<div class="cal-day${isT?' today':''}" onclick="togglePoop('${ds}')">${d}<div class="poop-dots">${logs.includes('user1')?'<div class="pdot pdot-blue"></div>':''}${logs.includes('user2')?'<div class="pdot pdot-gray"></div>':''}</div></div>`;
+    }
+    document.getElementById('cal-grid').innerHTML=html;
+}
+async function logPoopToday(){
+    const t=new Date(),pad=n=>String(n).padStart(2,'0');
+    const ds=`${t.getFullYear()}-${pad(t.getMonth()+1)}-${pad(t.getDate())}`;
+    const {data}=await db.from('PoopLog').select('id').eq('user_id',myId).eq('log_date',ds).maybeSingle();
+    if(data){showToast('今天已经记录过啦 💩');return;}
+    await db.from('PoopLog').insert({user_id:myId,log_date:ds});
+    showToast('记录成功 💩'); renderCalendar(); checkPoopWarning();
+}
+async function togglePoop(ds){
+    const {data}=await db.from('PoopLog').select('id').eq('user_id',myId).eq('log_date',ds).maybeSingle();
+    if(data){await db.from('PoopLog').delete().eq('id',data.id);showToast('已取消');}
+    else{await db.from('PoopLog').insert({user_id:myId,log_date:ds});showToast('记录成功 💩');}
+    renderCalendar(); checkPoopWarning();
+}
+async function checkPoopWarning(){
+    const {data}=await db.from('PoopLog').select('log_date').eq('user_id',myId).order('log_date',{ascending:false}).limit(1);
+    const w=document.getElementById('poop-warning');
+    if(!data||!data.length){w.style.display='block';w.innerText='⚠️ 还没有记录过哦，多喝水！';return;}
+    const diff=Math.floor((new Date()-new Date(data[0].log_date))/(864e5));
+    if(diff>=2){w.style.display='block';w.innerText=`⚠️ 你已经 ${diff} 天没记录了，多喝水哦！`;}
+    else w.style.display='none';
+}
+
+// ── 待办 ──
+let todoTab='fixed';
+function switchTodoTab(tab,el){todoTab=tab;document.querySelectorAll('.tab-btn').forEach(t=>t.classList.remove('active'));el.classList.add('active');renderTodos();}
+async function addTodo(){
+    const c=document.getElementById('todo-input').value.trim(); if(!c) return;
+    const today=new Date().toISOString().split('T')[0];
+    await db.from('Todos').insert({content:c,is_fixed:todoTab==='fixed',todo_date:todoTab==='today'?today:null,done_by:null});
+    document.getElementById('todo-input').value=''; renderTodos(); showToast('已添加 ✅');
+}
+async function renderTodos(){
+    const today=new Date().toISOString().split('T')[0];
+    // 固定待办：如果 done_by 是昨天或更早完成的，自动重置
+    const {data:fixedDone}=await db.from('Todos').select('id,updated_at').eq('is_fixed',true).not('done_by','is',null);
+    if(fixedDone){
+        for(const item of fixedDone){
+            const doneDate=new Date(item.updated_at).toISOString().split('T')[0];
+            if(doneDate<today) await db.from('Todos').update({done_by:null}).eq('id',item.id);
+        }
+    }
+    let q=db.from('Todos').select('*');
+    if(todoTab==='fixed') q=q.eq('is_fixed',true); else q=q.eq('is_fixed',false).eq('todo_date',today);
+    const {data}=await q.order('created_at',{ascending:true});
+    const list=document.getElementById('todo-list');
+    if(!data||!data.length){list.innerHTML='<div style="text-align:center;color:#c4a0b0;font-size:13px;padding:16px;">暂无待办~</div>';return;}
+    list.innerHTML=data.map(item=>{
+        const done=!!item.done_by;
+        const cc=item.done_by==='user1'?'done-blue':item.done_by==='user2'?'done-gray':'';
+        const tc=item.done_by==='user1'?'tag-blue':'tag-gray';
+        const dname=item.done_by?(item.done_by===myId?myName():ptName()):'';
+        return `<div class="todo-item"><div class="todo-check ${cc}" onclick="toggleTodo(${item.id},'${item.done_by||''}')">${done?'✓':''}</div><span class="todo-text ${done?'done':''}">${item.content}</span>${done?`<span class="todo-tag ${tc}">${dname}</span>`:''}<button class="del-btn" onclick="deleteTodo(${item.id})">🗑</button></div>`;
+    }).join('');
+}
+async function toggleTodo(id,doneBy){
+    if(doneBy&&doneBy!==myId){showToast('这是 '+(doneBy===myId?myName():ptName())+' 完成的哦 😊');return;}
+    await db.from('Todos').update({done_by:doneBy===myId?null:myId}).eq('id',id); renderTodos();
+}
+async function deleteTodo(id){ if(!confirm('删除这条待办？')) return; await db.from('Todos').delete().eq('id',id); renderTodos(); showToast('已删除'); }
+async function deleteBill(id){ if(!confirm('删除这条账单？')) return; await db.from('BillData').delete().eq('id',id); renderBills(); showToast('已删除'); }
+async function deleteWish(id){ if(!confirm('删除这个心愿？')) return; await db.from('Wishes').delete().eq('id',id); renderWishes(); showToast('已删除'); }
+async function deletePtItem(id){ if(!confirm('删除这个积分事项？')) return; await db.from('PointItems').delete().eq('id',id); renderPtItems(); showToast('已删除'); }
+async function deleteDiary(id){ if(!confirm('删除这篇日记？')) return; await db.from('Diary').delete().eq('id',id); renderDiary(); showToast('已删除'); }
+async function deleteAnniversary(id){ if(!confirm('删除这个纪念日？')) return; await db.from('Anniversaries').delete().eq('id',id); renderAnniversaries(); checkAnniversaryBanner(); showToast('已删除'); }
+async function deleteMessage(id){ if(!confirm('删除这条留言？')) return; await db.from('Messages').delete().eq('id',id); renderMessages(); showToast('已删除'); }
+
+// ── 积分 ──
+async function renderPtItems(){
+    const {data}=await db.from('PointItems').select('*').order('created_at',{ascending:true});
+    const list=document.getElementById('pt-item-list');
+    if(!data||!data.length){list.innerHTML='<div style="text-align:center;color:#c4a0b0;font-size:13px;padding:16px;">还没有积分事项~</div>';return;}
+    list.innerHTML=data.map(item=>`<div class="pts-item-row"><span style="font-size:13px;">${item.title}</span><div style="display:flex;align-items:center;gap:8px;"><span style="color:var(--pink);font-weight:700;font-size:13px;">+${item.points}分</span><button class="pts-earn-btn" onclick="earnPts(${item.id},${item.points},'${item.title}')">完成</button><button class="del-btn" onclick="deletePtItem(${item.id})">🗑</button></div></div>`).join('');
+}
+async function savePtItem(){
+    const t=document.getElementById('pt-item-name').value.trim();
+    const p=parseInt(document.getElementById('pt-item-pts').value);
+    if(!t||!p){showToast('请填写完整');return;}
+    await db.from('PointItems').insert({title:t,points:p});
+    document.getElementById('pt-item-name').value=''; document.getElementById('pt-item-pts').value='';
+    closeModal('pt-item-modal'); renderPtItems(); showToast('积分事项已添加 ⭐');
+}
+async function earnPts(id,pts,title){
+    await db.from('PointLogs').insert({user_id:myId,item_id:id,points:pts});
+    loadPts(); showToast('+'+pts+' 分！'+title+' ⭐');
+}
+async function loadPts(){
+    const {data:my}=await db.from('PointLogs').select('points').eq('user_id',myId);
+    const {data:pt}=await db.from('PointLogs').select('points').eq('user_id',pid());
+    document.getElementById('pts-me').innerText=my?my.reduce((s,r)=>s+r.points,0):0;
+    document.getElementById('pts-partner').innerText=pt?pt.reduce((s,r)=>s+r.points,0):0;
+}
+async function usePoints(){
+    const cur=parseInt(document.getElementById('pts-me').innerText)||0;
+    if(cur<30){showToast('积分不足30分哦');return;}
+    await db.from('PointLogs').insert({user_id:myId,item_id:null,points:-30});
+    loadPts(); showToast('已使用30积分 🎁');
+}
+
+// ── 日记 ──
+let diaryImgFile=null, diaryAudioBlob=null, mediaRecorder=null, audioChunks=[], isRecording=false;
+function handleDiaryImg(input){
+    if(!input.files||!input.files[0]) return;
+    diaryImgFile=input.files[0];
+    document.getElementById('img-pick-btn').classList.add('on');
+    const r=new FileReader(); r.onload=e=>{document.getElementById('diary-preview').innerHTML=`<img src="${e.target.result}">`;}; r.readAsDataURL(input.files[0]);
+}
+async function toggleRecord(){
+    if(!isRecording){
+        try{
+            const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+            mediaRecorder=new MediaRecorder(stream); audioChunks=[];
+            mediaRecorder.ondataavailable=e=>audioChunks.push(e.data);
+            mediaRecorder.onstop=()=>{
+                diaryAudioBlob=new Blob(audioChunks,{type:'audio/webm'});
+                document.getElementById('audio-pick-btn').classList.add('on');
+                document.getElementById('diary-preview').innerHTML+=`<audio controls class="diary-audio" src="${URL.createObjectURL(diaryAudioBlob)}"></audio>`;
+            };
+            mediaRecorder.start(); isRecording=true; document.getElementById('record-label').innerText='停止录音';
+        }catch(e){showToast('无法访问麦克风');}
+    } else {
+        mediaRecorder.stop(); mediaRecorder.stream.getTracks().forEach(t=>t.stop());
+        isRecording=false; document.getElementById('record-label').innerText='录音';
+    }
+}
+async function saveDiary(){
+    const content=document.getElementById('diary-text').value.trim();
+    if(!content&&!diaryImgFile&&!diaryAudioBlob){showToast('请写点什么或添加媒体');return;}
+    let mediaUrl=null, mediaType=null;
+    if(diaryImgFile){
+        const path=`${myId}/${Date.now()}.jpg`;
+        const {error}=await db.storage.from('diary-media').upload(path,diaryImgFile);
+        if(!error){const {data:ud}=db.storage.from('diary-media').getPublicUrl(path);mediaUrl=ud.publicUrl;mediaType='image';}
+    } else if(diaryAudioBlob){
+        const path=`${myId}/${Date.now()}.webm`;
+        const f=new File([diaryAudioBlob],'audio.webm',{type:'audio/webm'});
+        const {error}=await db.storage.from('diary-media').upload(path,f);
+        if(!error){const {data:ud}=db.storage.from('diary-media').getPublicUrl(path);mediaUrl=ud.publicUrl;mediaType='audio';}
+    }
+    await db.from('Diary').insert({user_id:myId,content,media_url:mediaUrl,media_type:mediaType});
+    document.getElementById('diary-text').value=''; document.getElementById('diary-preview').innerHTML='';
+    diaryImgFile=null; diaryAudioBlob=null;
+    document.getElementById('img-pick-btn').classList.remove('on');
+    document.getElementById('audio-pick-btn').classList.remove('on');
+    document.getElementById('record-label').innerText='录音';
+    renderDiary(); showToast('日记已发布 📖');
+}
+async function renderDiary(){
+    const {data}=await db.from('Diary').select('*').order('created_at',{ascending:false}).limit(30);
+    const list=document.getElementById('diary-list');
+    if(!data||!data.length){list.innerHTML='<div style="text-align:center;color:#c4a0b0;font-size:13px;padding:20px;">还没有日记~</div>';return;}
+    list.innerHTML=data.map(d=>{
+        const mine=d.user_id===myId;
+        const name=mine?myName():ptName();
+        const cc=(mine?myId:pid())==='user1'?'blue':'pink';
+        const date=new Date(d.created_at).toLocaleDateString('zh-CN',{month:'2-digit',day:'2-digit'});
+        let med='';
+        if(d.media_url&&d.media_type==='image') med=`<img src="${d.media_url}" class="diary-img">`;
+        if(d.media_url&&d.media_type==='audio') med=`<audio controls class="diary-audio" src="${d.media_url}"></audio>`;
+        return `<div class="diary-item"><div class="diary-header"><span class="diary-author ${cc}">${name}</span><div style="display:flex;align-items:center;gap:8px;"><span class="diary-date">${date}</span>${mine?`<button class="del-btn" onclick="deleteDiary(${d.id})">🗑</button>`:''}</div></div>${d.content?`<div class="diary-text">${d.content}</div>`:''}${med}</div>`;
+    }).join('');
+}
+
+// ── 纪念日 ──
+async function saveAnniversary(){
+    const title=document.getElementById('anni-title').value.trim();
+    const date=document.getElementById('anni-date').value;
+    const type=document.getElementById('anni-type').value;
+    if(!title||!date){showToast('请填写完整');return;}
+    await db.from('Anniversaries').insert({title,date,type});
+    closeModal('anni-modal');
+    document.getElementById('anni-title').value=''; document.getElementById('anni-date').value='';
+    renderAnniversaries(); checkAnniversaryBanner(); showToast('纪念日已添加 🗓️');
+}
+async function renderAnniversaries(){
+    const {data}=await db.from('Anniversaries').select('*').order('date',{ascending:true});
+    const list=document.getElementById('anni-list');
+    if(!data||!data.length){list.innerHTML='<div style="text-align:center;color:#c4a0b0;font-size:13px;padding:20px;">还没有纪念日~</div>';return;}
+    const today=new Date(); today.setHours(0,0,0,0);
+    list.innerHTML=data.map(a=>{
+        const d=new Date(a.date);
+        const next=new Date(today.getFullYear(),d.getMonth(),d.getDate());
+        if(next<today) next.setFullYear(today.getFullYear()+1);
+        const diff=Math.ceil((next-today)/864e5);
+        const emoji=a.type==='love'?'💕':a.type==='birth'?'🎂':'⭐';
+        const countdown=diff===0?'🎉 今天！':`还有 ${diff} 天`;
+        return `<div class="anni-item"><div class="anni-emoji">${emoji}</div><div class="anni-info"><div class="anni-name">${a.title}</div><div class="anni-date-text">${a.date}</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;"><div class="anni-countdown">${countdown}</div><button class="del-btn" onclick="deleteAnniversary(${a.id})">🗑</button></div></div>`;
+    }).join('');
+}
+async function checkAnniversaryBanner(){
+    const {data}=await db.from('Anniversaries').select('*');
+    if(!data) return;
+    const today=new Date(); today.setHours(0,0,0,0);
+    const banner=document.getElementById('anni-banner');
+    for(const a of data){
+        const d=new Date(a.date);
+        const next=new Date(today.getFullYear(),d.getMonth(),d.getDate());
+        if(next<today) next.setFullYear(today.getFullYear()+1);
+        const diff=Math.ceil((next-today)/864e5);
+        if(diff===0){banner.style.display='flex';document.getElementById('anni-banner-text').innerText='🎉 今天是：'+a.title+'！';pushNotif('纪念日提醒','今天是：'+a.title);return;}
+        if(diff<=3){banner.style.display='flex';document.getElementById('anni-banner-text').innerText=`⏰ ${diff}天后：${a.title}`;return;}
+    }
+}
+
+// ── 地图 ──
+let leafletMap=null, mapMarkers=[], pendingLL=null;
+let mapLang = localStorage.getItem('map_lang') || 'zh';
+let currentTileLayer = null;
+let addMode = false; // 是否处于添加模式
+
+const MAP_TILE = {
+    url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+    opts: { subdomains: 'abcd', attribution: '© CartoDB © OpenStreetMap', maxZoom: 19 }
+};
+
+// 语言切换已移除，统一使用 CartoDB
+
+function openFullMap(){
+    const fs = document.getElementById('map-fullscreen');
+    fs.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => {
+        initMapLazy();
+        if(leafletMap) leafletMap.invalidateSize();
+    }, 100);
+}
+
+function closeFullMap(){
+    document.getElementById('map-fullscreen').classList.remove('open');
+    document.body.style.overflow = '';
+    addMode = false;
+    updateAddMode();
+}
+
+function toggleAddMode(){
+    addMode = !addMode;
+    updateAddMode();
+}
+
+function updateAddMode(){
+    const btn = document.getElementById('map-add-btn');
+    const hint = document.getElementById('map-hint');
+    const tip = document.getElementById('map-mode-tip');
+    if(addMode){
+        btn.classList.add('adding');
+        btn.innerText = '✕';
+        hint.style.display = 'block';
+        if(tip) tip.innerText = '点击地图添加足迹';
+    } else {
+        btn.classList.remove('adding');
+        btn.innerText = '📍';
+        hint.style.display = 'none';
+        if(tip) tip.innerText = '浏览地图';
+    }
+}
+
+let previewMap = null;
+
+function initPreviewMap(){
+    if(previewMap) return;
+    if(typeof L==='undefined'){setTimeout(initPreviewMap,300);return;}
+    previewMap = L.map('map-preview', {
+        zoomControl:false, attributionControl:false,
+        dragging:false, touchZoom:false, scrollWheelZoom:false,
+        doubleClickZoom:false, boxZoom:false, keyboard:false
+    }).setView([30,105],2);
+    L.tileLayer(MAP_TILE.url, MAP_TILE.opts).addTo(previewMap);
+}
+
+function initMapLazy(){
+    if(leafletMap) return;
+    if(typeof L==='undefined'){setTimeout(initMapLazy,300);return;}
+    leafletMap=L.map('map').setView([30,105],3);
+    currentTileLayer = L.tileLayer(MAP_TILE.url, MAP_TILE.opts).addTo(leafletMap);
+    leafletMap.on('click', e => {
+        if(!addMode) return;
+        pendingLL = e.latlng;
+        document.getElementById('spot-date').value = new Date().toISOString().split('T')[0];
+        document.getElementById('spot-coords').innerText = `${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)}`;
+        addMode = false;
+        updateAddMode();
+        openModal('spot-modal');
+    });
+    loadMapSpots();
+}
+async function loadMapSpots(){
+    const {data}=await db.from('MapSpots').select('*');
+    mapMarkers.forEach(m=>leafletMap.removeLayer(m)); mapMarkers=[];
+    if(!data) return;
+    data.forEach(s=>{
+        const m=L.marker([s.lat,s.lng],{icon:L.divIcon({className:'',html:'<div style="font-size:20px;">📍</div>',iconSize:[24,24],iconAnchor:[12,24]})}).addTo(leafletMap);
+        m.bindPopup(`<b>${s.country_name}</b>${s.note?'<br>'+s.note:''}<br><small>${s.visited_at||''}</small>`);
+        mapMarkers.push(m);
+    });
+    renderSpotList(data);
+}
+async function saveSpot(){
+    const name=document.getElementById('spot-name').value.trim();
+    if(!name||!pendingLL){showToast('请填写地点名称');return;}
+    await db.from('MapSpots').insert({country_name:name,note:document.getElementById('spot-note').value.trim(),visited_at:document.getElementById('spot-date').value,lat:pendingLL.lat,lng:pendingLL.lng});
+    document.getElementById('spot-name').value=''; document.getElementById('spot-note').value='';
+    closeModal('spot-modal'); loadMapSpots(); showToast('已点亮 📍'+name);
+}
+function renderSpotList(data){
+    document.getElementById('spot-count').innerText=data.length;
+    const list=document.getElementById('spot-list');
+    if(!data.length){list.innerHTML='<div style="text-align:center;color:#c4a0b0;font-size:13px;padding:12px;">还没有足迹~</div>';return;}
+    list.innerHTML=data.map(s=>`<div class="spot-item"><div><div class="spot-name">📍 ${s.country_name}</div><div class="spot-meta">${s.visited_at||''}${s.note?' · '+s.note:''}</div></div><button class="spot-del" onclick="deleteSpot(${s.id})">🗑</button></div>`).join('');
+}
+async function deleteSpot(id){await db.from('MapSpots').delete().eq('id',id);loadMapSpots();showToast('已删除');}
+
+// ── 导航 ──
+function showSection(id,el){
+    document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+    document.getElementById(id).classList.add('active'); el.classList.add('active');
+    if(id==='home'){renderMessages();fetchMyStatus();fetchPartnerStatus();fetchTravelStatus();}
+    if(id==='bill'){renderBills();renderWishes();}
+    if(id==='poop'){renderCalendar();checkPoopWarning();}
+    if(id==='life'){renderTodos();renderPtItems();loadPts();renderMessages();}
+    if(id==='more'){renderDiary();renderAnniversaries();}
+}
+function switchSub(page,id,el){
+    const parent=document.getElementById(page);
+    parent.querySelectorAll('.sub-section').forEach(s=>s.classList.remove('active'));
+    parent.querySelectorAll('.sub-tab').forEach(t=>t.classList.remove('active'));
+    document.getElementById(id).classList.add('active'); el.classList.add('active');
+}
+
+// ── 背景 ──
+function resetIdentity(){
+    if(!confirm('确定切换身份？')) return;
+    localStorage.removeItem('my_id');
+    localStorage.removeItem('my_color');
+    location.reload();
+}
+
+function changeBg(input){
+    if(!input.files||!input.files[0]) return;
+    const r=new FileReader();
+    r.onload=e=>{document.body.style.backgroundImage=`url(${e.target.result})`;localStorage.setItem('user_bg',e.target.result);};
+    r.readAsDataURL(input.files[0]);
+}
+
+// ── 抽签 ──
+function startRoll(){
+    const names=[myName(),ptName()], rt=document.getElementById('result-text');
+    let c=0; const t=setInterval(()=>{rt.innerText=names[c%2];c++;if(c>16){clearInterval(t);rt.innerText=names[Math.floor(Math.random()*2)];}},90);
+}
+</script>
+</body>
+</html>
