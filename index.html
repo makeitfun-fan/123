@@ -651,11 +651,11 @@
                     <button class="muyu-btn" onclick="knockMuyu()" id="muyu-btn">🪘</button>
                     <div style="display:flex;gap:10px;margin-top:2px;">
                         <div style="display:flex;flex-direction:column;align-items:center;">
-                            <span class="miss-badge" id="muyu-me">0</span>
+                            <span id="muyu-me" style="background:linear-gradient(135deg,#ff85a1,#ff5c8d);color:white;border-radius:50%;width:22px;height:22px;font-size:11px;font-weight:700;display:flex;justify-content:center;align-items:center;">0</span>
                             <span style="font-size:9px;color:#c4a0b0;margin-top:2px;" id="muyu-label-me">我</span>
                         </div>
                         <div style="display:flex;flex-direction:column;align-items:center;">
-                            <span class="miss-badge" id="muyu-partner" style="background:var(--blue);">0</span>
+                            <span id="muyu-partner" style="background:var(--blue);color:white;border-radius:50%;width:22px;height:22px;font-size:11px;font-weight:700;display:flex;justify-content:center;align-items:center;">0</span>
                             <span style="font-size:9px;color:#c4a0b0;margin-top:2px;" id="muyu-label-pt">TA</span>
                         </div>
                     </div>
@@ -1069,12 +1069,21 @@ async function updateMyStatus(mood) {
 }
 
 // ── 木鱼 ──
+let muyuLocalCount = 0; // 本地计数，防止被刷新覆盖
+let muyuSyncing = false;
+
 async function loadMuyuCount() {
     const {data:me} = await db.from('lovedata').select('content').eq('type','muyu_'+myId).maybeSingle();
     const {data:pt} = await db.from('lovedata').select('content').eq('type','muyu_'+pid()).maybeSingle();
-    document.getElementById('muyu-me').innerText = me ? parseInt(me.content)||0 : 0;
+    const dbVal = me ? parseInt(me.content)||0 : 0;
+    // 只有本地计数<=数据库值时才更新UI（避免覆盖刚敲的数字）
+    if(dbVal >= muyuLocalCount) {
+        muyuLocalCount = dbVal;
+        document.getElementById('muyu-me').innerText = dbVal;
+    }
     document.getElementById('muyu-partner').innerText = pt ? parseInt(pt.content)||0 : 0;
 }
+
 async function knockMuyu() {
     // 动画
     const btn = document.getElementById('muyu-btn');
@@ -1092,18 +1101,12 @@ async function knockMuyu() {
         g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+0.4);
         o.start(); o.stop(ctx.currentTime+0.4);
     } catch(e){}
-    // 计数：先读当前值，再upsert
+    // 本地立刻+1显示，异步写数据库
+    muyuLocalCount += 1;
+    document.getElementById('muyu-me').innerText = muyuLocalCount;
     const type = 'muyu_'+myId;
-    const cur = parseInt(document.getElementById('muyu-me').innerText)||0;
-    const nc = cur + 1;
-    document.getElementById('muyu-me').innerText = nc; // 先更新UI
-    const {error} = await db.from('lovedata')
-        .upsert({type, content: String(nc)}, {onConflict: 'type'});
-    if(error) {
-        // upsert失败则fallback：删旧的再插新的
-        await db.from('lovedata').delete().eq('type', type);
-        await db.from('lovedata').insert({type, content: String(nc)});
-    }
+    const nc = muyuLocalCount;
+    await db.from('lovedata').upsert({type, content: String(nc)}, {onConflict:'type'});
 }
 
 // ── 出发到达 ──
