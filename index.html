@@ -921,12 +921,12 @@ async function init() {
 
     setInterval(() => { fetchPartnerStatus(); fetchTravelStatus(); loadMissCount(); }, 5000);
 
-    db.channel('msgs').on('postgres_changes', {event:'INSERT',schema:'public',table:'Messages'}, p => {
+    db.channel('msgs').on('postgres_changes', {event:'INSERT',schema:'public',table:'messages'}, p => {
         if (p.new.sender !== myId) { showToast('💬 ' + ptName() + '：' + p.new.content); pushNotif(ptName() + ' 给你留言了', p.new.content); }
         renderMessages();
     }).subscribe();
 
-    db.channel('love').on('postgres_changes', {event:'*',schema:'public',table:'LoveData'}, p => {
+    db.channel('love').on('postgres_changes', {event:'*',schema:'public',table:'lovedata'}, p => {
         if (!p.new) return;
         if (p.new.type === 'miss_' + myId) { showToast('❤️ ' + ptName() + ' 想你了！'); pushNotif(ptName() + ' 想你了', ''); loadMissCount(); }
         if (p.new.type === 'travel_' + myId) { const msg = p.new.content==='depart'?ptName()+' 出发啦 🚗':ptName()+' 到家了 🏠'; showToast(msg); pushNotif(msg,''); playBeep(); }
@@ -938,9 +938,9 @@ async function init() {
 
 // ── 昵称（只能给对方起）──
 async function loadNicknames() {
-    const {data:my} = await db.from('Profiles').select('partner_nickname').eq('user_id',myId).maybeSingle();
+    const {data:my} = await db.from('profiles').select('partner_nickname').eq('user_id',myId).maybeSingle();
     if (my?.partner_nickname) { ptNick = my.partner_nickname; localStorage.setItem('pt_nick_'+myId, ptNick); }
-    const {data:pt} = await db.from('Profiles').select('partner_nickname').eq('user_id',pid()).maybeSingle();
+    const {data:pt} = await db.from('profiles').select('partner_nickname').eq('user_id',pid()).maybeSingle();
     if (pt?.partner_nickname) localStorage.setItem('my_name_from_partner', pt.partner_nickname);
     updateNickUI();
 }
@@ -961,9 +961,9 @@ async function saveNickname() {
     const n = document.getElementById('partner-nickname-input').value.trim();
     if (!n) { showToast('请输入昵称哦'); return; }
     ptNick = n; localStorage.setItem('pt_nick_'+myId, n);
-    const {data} = await db.from('Profiles').select('id').eq('user_id',myId).maybeSingle();
-    if (data) await db.from('Profiles').update({partner_nickname:n,updated_at:new Date().toISOString()}).eq('user_id',myId);
-    else await db.from('Profiles').insert({user_id:myId,partner_nickname:n});
+    const {data} = await db.from('profiles').select('id').eq('user_id',myId).maybeSingle();
+    if (data) await db.from('profiles').update({partner_nickname:n,updated_at:new Date().toISOString()}).eq('user_id',myId);
+    else await db.from('profiles').insert({user_id:myId,partner_nickname:n});
     closeModal('nickname-modal'); updateNickUI(); showToast('昵称已更新 ✨');
 }
 
@@ -997,25 +997,25 @@ function selectMood(btn, mood) {
     setTimeout(() => updateMyStatus(mood), 300);
 }
 async function fetchMyStatus() {
-    const {data} = await db.from('LoveData').select('content').eq('type','status_'+myId).maybeSingle();
+    const {data} = await db.from('lovedata').select('content').eq('type','status_'+myId).maybeSingle();
     if (data) document.getElementById('status-me').innerText = data.content;
 }
 async function fetchPartnerStatus() {
-    const {data} = await db.from('LoveData').select('content').eq('type','status_'+pid()).maybeSingle();
+    const {data} = await db.from('lovedata').select('content').eq('type','status_'+pid()).maybeSingle();
     document.getElementById('status-partner').innerText = data ? data.content : '暂无';
 }
 async function updateMyStatus(mood) {
     const type = 'status_'+myId;
-    const {data} = await db.from('LoveData').select('id').eq('type',type).maybeSingle();
-    if (data) await db.from('LoveData').update({content:mood}).eq('type',type);
-    else await db.from('LoveData').insert({type,content:mood});
+    const {data} = await db.from('lovedata').select('id').eq('type',type).maybeSingle();
+    if (data) await db.from('lovedata').update({content:mood}).eq('type',type);
+    else await db.from('lovedata').insert({type,content:mood});
     document.getElementById('status-me').innerText = mood;
     showToast('心情已同步 ✨');
 }
 
 // ── 想念 ──
 async function loadMissCount() {
-    const {data} = await db.from('LoveData').select('content').eq('type','miss_count_'+pid()).maybeSingle();
+    const {data} = await db.from('lovedata').select('content').eq('type','miss_count_'+pid()).maybeSingle();
     document.getElementById('miss-count').innerText = data ? parseInt(data.content)||0 : 0;
 }
 async function sendMiss() {
@@ -1025,14 +1025,14 @@ async function sendMiss() {
         document.body.appendChild(h); setTimeout(()=>h.remove(),1500);
     },i*130);
     const ct='miss_count_'+pid();
-    const {data:cd}=await db.from('LoveData').select('content,id').eq('type',ct).maybeSingle();
+    const {data:cd}=await db.from('lovedata').select('content,id').eq('type',ct).maybeSingle();
     const nc=cd?(parseInt(cd.content)||0)+1:1;
-    if(cd) await db.from('LoveData').update({content:String(nc)}).eq('type',ct);
-    else await db.from('LoveData').insert({type:ct,content:String(nc)});
+    if(cd) await db.from('lovedata').update({content:String(nc)}).eq('type',ct);
+    else await db.from('lovedata').insert({type:ct,content:String(nc)});
     const mt='miss_'+pid();
-    const {data:md}=await db.from('LoveData').select('id').eq('type',mt).maybeSingle();
-    if(md) await db.from('LoveData').update({content:new Date().toISOString()}).eq('type',mt);
-    else await db.from('LoveData').insert({type:mt,content:new Date().toISOString()});
+    const {data:md}=await db.from('lovedata').select('id').eq('type',mt).maybeSingle();
+    if(md) await db.from('lovedata').update({content:new Date().toISOString()}).eq('type',mt);
+    else await db.from('lovedata').insert({type:mt,content:new Date().toISOString()});
     document.getElementById('miss-count').innerText=nc;
     const tip=document.getElementById('miss-tip');
     tip.innerText='已发送给 '+ptName()+' 💕'; setTimeout(()=>tip.innerText='',3000);
@@ -1041,21 +1041,21 @@ async function sendMiss() {
 // ── 出发到达 ──
 async function sendTravel(type) {
     const tt='travel_'+pid();
-    const {data}=await db.from('LoveData').select('id').eq('type',tt).maybeSingle();
-    if(data) await db.from('LoveData').update({content:type}).eq('type',tt);
-    else await db.from('LoveData').insert({type:tt,content:type});
+    const {data}=await db.from('lovedata').select('id').eq('type',tt).maybeSingle();
+    if(data) await db.from('lovedata').update({content:type}).eq('type',tt);
+    else await db.from('lovedata').insert({type:tt,content:type});
     showToast('已通知 '+ptName()+' 你'+(type==='depart'?'出发':'到达')+'了 '+(type==='depart'?'🚗':'🏠'));
     fetchTravelStatus();
 }
 async function fetchTravelStatus() {
-    const {data}=await db.from('LoveData').select('content').eq('type','travel_'+myId).maybeSingle();
+    const {data}=await db.from('lovedata').select('content').eq('type','travel_'+myId).maybeSingle();
     const el=document.getElementById('travel-status');
     el.innerText=data?(data.content==='depart'?ptName()+' 已出发 🚗':ptName()+' 已到达 🏠'):'';
 }
 
 // ── 留言 ──
 async function renderMessages() {
-    const {data}=await db.from('Messages').select('*').order('created_at',{ascending:true}).limit(60);
+    const {data}=await db.from('messages').select('*').order('created_at',{ascending:true}).limit(60);
     const list=document.getElementById('msg-list');
     if(!data||!data.length){list.innerHTML='<div style="text-align:center;color:#c4a0b0;font-size:13px;padding:20px;">还没有留言~</div>';return;}
     list.innerHTML=data.map(m=>{
@@ -1069,7 +1069,7 @@ async function renderMessages() {
 async function sendMessage() {
     const input=document.getElementById('msg-input');
     const c=input.value.trim(); if(!c||!myId) return;
-    await db.from('Messages').insert({sender:myId,content:c});
+    await db.from('messages').insert({sender:myId,content:c});
     input.value=''; renderMessages();
 }
 
@@ -1078,12 +1078,12 @@ async function addBill() {
     const name=document.getElementById('bill-name').value.trim();
     const amt=document.getElementById('bill-amount').value;
     if(!name||!amt) return;
-    await db.from('BillData').insert({name,amount:parseFloat(amt),user_id:myId});
+    await db.from('billdata').insert({name,amount:parseFloat(amt),user_id:myId});
     document.getElementById('bill-name').value=''; document.getElementById('bill-amount').value='';
     renderBills(); showToast('记账成功 💰');
 }
 async function renderBills() {
-    const {data}=await db.from('BillData').select('*').order('created_at',{ascending:false});
+    const {data}=await db.from('billdata').select('*').order('created_at',{ascending:false});
     const list=document.getElementById('bill-list');
     if(!data||!data.length){list.innerHTML='<li style="text-align:center;color:#c4a0b0;padding:20px;font-size:13px;">暂无账单</li>';document.getElementById('total-amount').innerText='¥0.00';return;}
     let total=0;
@@ -1101,7 +1101,7 @@ async function filterBills() {
     const e=document.getElementById('filter-end').value;
     const who=document.getElementById('filter-who').value;
     if(!s||!e){showToast('请选择起止日期');return;}
-    let q=db.from('BillData').select('amount,user_id').gte('created_at',s).lte('created_at',e+'T23:59:59');
+    let q=db.from('billdata').select('amount,user_id').gte('created_at',s).lte('created_at',e+'T23:59:59');
     if(who==='me') q=q.eq('user_id',myId);
     else if(who==='partner') q=q.eq('user_id',pid());
     const {data}=await q;
@@ -1114,11 +1114,11 @@ async function filterBills() {
 // ── 许愿 ──
 async function addWish() {
     const c=document.getElementById('wish-input').value.trim(); if(!c) return;
-    await db.from('Wishes').insert({user_id:myId,content:c});
+    await db.from('wishes').insert({user_id:myId,content:c});
     document.getElementById('wish-input').value=''; renderWishes(); showToast('心愿已许下 🌟');
 }
 async function renderWishes() {
-    const {data}=await db.from('Wishes').select('*').order('created_at',{ascending:false});
+    const {data}=await db.from('wishes').select('*').order('created_at',{ascending:false});
     const list=document.getElementById('wish-list');
     if(!data||!data.length){list.innerHTML='<div style="text-align:center;color:#c4a0b0;font-size:13px;padding:12px;">还没有心愿~</div>';return;}
     list.innerHTML=data.map(w=>{
@@ -1136,7 +1136,7 @@ async function renderWishes() {
     }).join('');
 }
 async function toggleWish(id, done){
-    await db.from('Wishes').update({fulfilled: !done}).eq('id',id);
+    await db.from('wishes').update({fulfilled: !done}).eq('id',id);
     renderWishes();
     if(!done) showToast('心愿达成了 🎉');
 }
@@ -1146,7 +1146,7 @@ let calY=new Date().getFullYear(), calM=new Date().getMonth();
 function changeMonth(d){calM+=d;if(calM<0){calM=11;calY--;}if(calM>11){calM=0;calY++;}renderCalendar();}
 async function renderCalendar() {
     const pad=n=>String(n).padStart(2,'0');
-    const {data}=await db.from('PoopLog').select('*').gte('log_date',`${calY}-${pad(calM+1)}-01`).lte('log_date',`${calY}-${pad(calM+1)}-31`);
+    const {data}=await db.from('pooplog').select('*').gte('log_date',`${calY}-${pad(calM+1)}-01`).lte('log_date',`${calY}-${pad(calM+1)}-31`);
     const lm={}; if(data) data.forEach(r=>{if(!lm[r.log_date])lm[r.log_date]=[];lm[r.log_date].push(r.user_id);});
     const months=['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
     document.getElementById('cal-title').innerText=`${calY}年 ${months[calM]}`;
@@ -1164,19 +1164,19 @@ async function renderCalendar() {
 async function logPoopToday(){
     const t=new Date(),pad=n=>String(n).padStart(2,'0');
     const ds=`${t.getFullYear()}-${pad(t.getMonth()+1)}-${pad(t.getDate())}`;
-    const {data}=await db.from('PoopLog').select('id').eq('user_id',myId).eq('log_date',ds).maybeSingle();
+    const {data}=await db.from('pooplog').select('id').eq('user_id',myId).eq('log_date',ds).maybeSingle();
     if(data){showToast('今天已经记录过啦 💩');return;}
-    await db.from('PoopLog').insert({user_id:myId,log_date:ds});
+    await db.from('pooplog').insert({user_id:myId,log_date:ds});
     showToast('记录成功 💩'); renderCalendar(); checkPoopWarning();
 }
 async function togglePoop(ds){
-    const {data}=await db.from('PoopLog').select('id').eq('user_id',myId).eq('log_date',ds).maybeSingle();
-    if(data){await db.from('PoopLog').delete().eq('id',data.id);showToast('已取消');}
-    else{await db.from('PoopLog').insert({user_id:myId,log_date:ds});showToast('记录成功 💩');}
+    const {data}=await db.from('pooplog').select('id').eq('user_id',myId).eq('log_date',ds).maybeSingle();
+    if(data){await db.from('pooplog').delete().eq('id',data.id);showToast('已取消');}
+    else{await db.from('pooplog').insert({user_id:myId,log_date:ds});showToast('记录成功 💩');}
     renderCalendar(); checkPoopWarning();
 }
 async function checkPoopWarning(){
-    const {data}=await db.from('PoopLog').select('log_date').eq('user_id',myId).order('log_date',{ascending:false}).limit(1);
+    const {data}=await db.from('pooplog').select('log_date').eq('user_id',myId).order('log_date',{ascending:false}).limit(1);
     const w=document.getElementById('poop-warning');
     if(!data||!data.length){w.style.display='block';w.innerText='⚠️ 还没有记录过哦，多喝水！';return;}
     const diff=Math.floor((new Date()-new Date(data[0].log_date))/(864e5));
@@ -1190,20 +1190,20 @@ function switchTodoTab(tab,el){todoTab=tab;document.querySelectorAll('.tab-btn')
 async function addTodo(){
     const c=document.getElementById('todo-input').value.trim(); if(!c) return;
     const today=new Date().toISOString().split('T')[0];
-    await db.from('Todos').insert({content:c,is_fixed:todoTab==='fixed',todo_date:todoTab==='today'?today:null,done_by:null});
+    await db.from('todos').insert({content:c,is_fixed:todoTab==='fixed',todo_date:todoTab==='today'?today:null,done_by:null});
     document.getElementById('todo-input').value=''; renderTodos(); showToast('已添加 ✅');
 }
 async function renderTodos(){
     const today=new Date().toISOString().split('T')[0];
     // 固定待办：如果 done_by 是昨天或更早完成的，自动重置
-    const {data:fixedDone}=await db.from('Todos').select('id,updated_at').eq('is_fixed',true).not('done_by','is',null);
+    const {data:fixedDone}=await db.from('todos').select('id,updated_at').eq('is_fixed',true).not('done_by','is',null);
     if(fixedDone){
         for(const item of fixedDone){
             const doneDate=new Date(item.updated_at).toISOString().split('T')[0];
-            if(doneDate<today) await db.from('Todos').update({done_by:null}).eq('id',item.id);
+            if(doneDate<today) await db.from('todos').update({done_by:null}).eq('id',item.id);
         }
     }
-    let q=db.from('Todos').select('*');
+    let q=db.from('todos').select('*');
     if(todoTab==='fixed') q=q.eq('is_fixed',true); else q=q.eq('is_fixed',false).eq('todo_date',today);
     const {data}=await q.order('created_at',{ascending:true});
     const list=document.getElementById('todo-list');
@@ -1218,19 +1218,19 @@ async function renderTodos(){
 }
 async function toggleTodo(id,doneBy){
     if(doneBy&&doneBy!==myId){showToast('这是 '+(doneBy===myId?myName():ptName())+' 完成的哦 😊');return;}
-    await db.from('Todos').update({done_by:doneBy===myId?null:myId}).eq('id',id); renderTodos();
+    await db.from('todos').update({done_by:doneBy===myId?null:myId}).eq('id',id); renderTodos();
 }
-async function deleteTodo(id){ if(!confirm('删除这条待办？')) return; await db.from('Todos').delete().eq('id',id); renderTodos(); showToast('已删除'); }
-async function deleteBill(id){ if(!confirm('删除这条账单？')) return; await db.from('BillData').delete().eq('id',id); renderBills(); showToast('已删除'); }
-async function deleteWish(id){ if(!confirm('删除这个心愿？')) return; await db.from('Wishes').delete().eq('id',id); renderWishes(); showToast('已删除'); }
-async function deletePtItem(id){ if(!confirm('删除这个积分事项？')) return; await db.from('PointItems').delete().eq('id',id); renderPtItems(); showToast('已删除'); }
-async function deleteDiary(id){ if(!confirm('删除这篇日记？')) return; await db.from('Diary').delete().eq('id',id); renderDiary(); showToast('已删除'); }
-async function deleteAnniversary(id){ if(!confirm('删除这个纪念日？')) return; await db.from('Anniversaries').delete().eq('id',id); renderAnniversaries(); checkAnniversaryBanner(); showToast('已删除'); }
-async function deleteMessage(id){ if(!confirm('删除这条留言？')) return; await db.from('Messages').delete().eq('id',id); renderMessages(); showToast('已删除'); }
+async function deleteTodo(id){ if(!confirm('删除这条待办？')) return; await db.from('todos').delete().eq('id',id); renderTodos(); showToast('已删除'); }
+async function deleteBill(id){ if(!confirm('删除这条账单？')) return; await db.from('billdata').delete().eq('id',id); renderBills(); showToast('已删除'); }
+async function deleteWish(id){ if(!confirm('删除这个心愿？')) return; await db.from('wishes').delete().eq('id',id); renderWishes(); showToast('已删除'); }
+async function deletePtItem(id){ if(!confirm('删除这个积分事项？')) return; await db.from('pointitems').delete().eq('id',id); renderPtItems(); showToast('已删除'); }
+async function deleteDiary(id){ if(!confirm('删除这篇日记？')) return; await db.from('diary').delete().eq('id',id); renderDiary(); showToast('已删除'); }
+async function deleteAnniversary(id){ if(!confirm('删除这个纪念日？')) return; await db.from('anniversaries').delete().eq('id',id); renderAnniversaries(); checkAnniversaryBanner(); showToast('已删除'); }
+async function deleteMessage(id){ if(!confirm('删除这条留言？')) return; await db.from('messages').delete().eq('id',id); renderMessages(); showToast('已删除'); }
 
 // ── 积分 ──
 async function renderPtItems(){
-    const {data}=await db.from('PointItems').select('*').order('created_at',{ascending:true});
+    const {data}=await db.from('pointitems').select('*').order('created_at',{ascending:true});
     const list=document.getElementById('pt-item-list');
     if(!data||!data.length){list.innerHTML='<div style="text-align:center;color:#c4a0b0;font-size:13px;padding:16px;">还没有积分事项~</div>';return;}
     list.innerHTML=data.map(item=>`<div class="pts-item-row"><span style="font-size:13px;">${item.title}</span><div style="display:flex;align-items:center;gap:8px;"><span style="color:var(--pink);font-weight:700;font-size:13px;">+${item.points}分</span><button class="pts-earn-btn" onclick="earnPts(${item.id},${item.points},'${item.title}')">完成</button><button class="del-btn" onclick="deletePtItem(${item.id})">🗑</button></div></div>`).join('');
@@ -1239,24 +1239,24 @@ async function savePtItem(){
     const t=document.getElementById('pt-item-name').value.trim();
     const p=parseInt(document.getElementById('pt-item-pts').value);
     if(!t||!p){showToast('请填写完整');return;}
-    await db.from('PointItems').insert({title:t,points:p});
+    await db.from('pointitems').insert({title:t,points:p});
     document.getElementById('pt-item-name').value=''; document.getElementById('pt-item-pts').value='';
     closeModal('pt-item-modal'); renderPtItems(); showToast('积分事项已添加 ⭐');
 }
 async function earnPts(id,pts,title){
-    await db.from('PointLogs').insert({user_id:myId,item_id:id,points:pts});
+    await db.from('pointlogs').insert({user_id:myId,item_id:id,points:pts});
     loadPts(); showToast('+'+pts+' 分！'+title+' ⭐');
 }
 async function loadPts(){
-    const {data:my}=await db.from('PointLogs').select('points').eq('user_id',myId);
-    const {data:pt}=await db.from('PointLogs').select('points').eq('user_id',pid());
+    const {data:my}=await db.from('pointlogs').select('points').eq('user_id',myId);
+    const {data:pt}=await db.from('pointlogs').select('points').eq('user_id',pid());
     document.getElementById('pts-me').innerText=my?my.reduce((s,r)=>s+r.points,0):0;
     document.getElementById('pts-partner').innerText=pt?pt.reduce((s,r)=>s+r.points,0):0;
 }
 async function usePoints(){
     const cur=parseInt(document.getElementById('pts-me').innerText)||0;
     if(cur<30){showToast('积分不足30分哦');return;}
-    await db.from('PointLogs').insert({user_id:myId,item_id:null,points:-30});
+    await db.from('pointlogs').insert({user_id:myId,item_id:null,points:-30});
     loadPts(); showToast('已使用30积分 🎁');
 }
 
@@ -1300,7 +1300,7 @@ async function saveDiary(){
         const {error}=await db.storage.from('diary-media').upload(path,f);
         if(!error){const {data:ud}=db.storage.from('diary-media').getPublicUrl(path);mediaUrl=ud.publicUrl;mediaType='audio';}
     }
-    await db.from('Diary').insert({user_id:myId,content,media_url:mediaUrl,media_type:mediaType});
+    await db.from('diary').insert({user_id:myId,content,media_url:mediaUrl,media_type:mediaType});
     document.getElementById('diary-text').value=''; document.getElementById('diary-preview').innerHTML='';
     diaryImgFile=null; diaryAudioBlob=null;
     document.getElementById('img-pick-btn').classList.remove('on');
@@ -1309,7 +1309,7 @@ async function saveDiary(){
     renderDiary(); showToast('日记已发布 📖');
 }
 async function renderDiary(){
-    const {data}=await db.from('Diary').select('*').order('created_at',{ascending:false}).limit(30);
+    const {data}=await db.from('diary').select('*').order('created_at',{ascending:false}).limit(30);
     const list=document.getElementById('diary-list');
     if(!data||!data.length){list.innerHTML='<div style="text-align:center;color:#c4a0b0;font-size:13px;padding:20px;">还没有日记~</div>';return;}
     list.innerHTML=data.map(d=>{
@@ -1330,13 +1330,13 @@ async function saveAnniversary(){
     const date=document.getElementById('anni-date').value;
     const type=document.getElementById('anni-type').value;
     if(!title||!date){showToast('请填写完整');return;}
-    await db.from('Anniversaries').insert({title,date,type});
+    await db.from('anniversaries').insert({title,date,type});
     closeModal('anni-modal');
     document.getElementById('anni-title').value=''; document.getElementById('anni-date').value='';
     renderAnniversaries(); checkAnniversaryBanner(); showToast('纪念日已添加 🗓️');
 }
 async function renderAnniversaries(){
-    const {data}=await db.from('Anniversaries').select('*').order('date',{ascending:true});
+    const {data}=await db.from('anniversaries').select('*').order('date',{ascending:true});
     const list=document.getElementById('anni-list');
     if(!data||!data.length){list.innerHTML='<div style="text-align:center;color:#c4a0b0;font-size:13px;padding:20px;">还没有纪念日~</div>';return;}
     const today=new Date(); today.setHours(0,0,0,0);
@@ -1351,7 +1351,7 @@ async function renderAnniversaries(){
     }).join('');
 }
 async function checkAnniversaryBanner(){
-    const {data}=await db.from('Anniversaries').select('*');
+    const {data}=await db.from('anniversaries').select('*');
     if(!data) return;
     const today=new Date(); today.setHours(0,0,0,0);
     const banner=document.getElementById('anni-banner');
@@ -1447,7 +1447,7 @@ function initMapLazy(){
     loadMapSpots();
 }
 async function loadMapSpots(){
-    const {data}=await db.from('MapSpots').select('*');
+    const {data}=await db.from('mapspots').select('*');
     mapMarkers.forEach(m=>leafletMap.removeLayer(m)); mapMarkers=[];
     if(!data) return;
     data.forEach(s=>{
@@ -1460,7 +1460,7 @@ async function loadMapSpots(){
 async function saveSpot(){
     const name=document.getElementById('spot-name').value.trim();
     if(!name||!pendingLL){showToast('请填写地点名称');return;}
-    await db.from('MapSpots').insert({country_name:name,note:document.getElementById('spot-note').value.trim(),visited_at:document.getElementById('spot-date').value,lat:pendingLL.lat,lng:pendingLL.lng});
+    await db.from('mapspots').insert({country_name:name,note:document.getElementById('spot-note').value.trim(),visited_at:document.getElementById('spot-date').value,lat:pendingLL.lat,lng:pendingLL.lng});
     document.getElementById('spot-name').value=''; document.getElementById('spot-note').value='';
     closeModal('spot-modal'); loadMapSpots(); showToast('已点亮 📍'+name);
 }
@@ -1470,7 +1470,7 @@ function renderSpotList(data){
     if(!data.length){list.innerHTML='<div style="text-align:center;color:#c4a0b0;font-size:13px;padding:12px;">还没有足迹~</div>';return;}
     list.innerHTML=data.map(s=>`<div class="spot-item"><div><div class="spot-name">📍 ${s.country_name}</div><div class="spot-meta">${s.visited_at||''}${s.note?' · '+s.note:''}</div></div><button class="spot-del" onclick="deleteSpot(${s.id})">🗑</button></div>`).join('');
 }
-async function deleteSpot(id){await db.from('MapSpots').delete().eq('id',id);loadMapSpots();showToast('已删除');}
+async function deleteSpot(id){await db.from('mapspots').delete().eq('id',id);loadMapSpots();showToast('已删除');}
 
 // ── 导航 ──
 function showSection(id,el){
