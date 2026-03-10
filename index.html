@@ -1025,9 +1025,36 @@ function pushNotif(title,body) {
         });
     }
 }
+let _audioCtx = null;
+function getAudioCtx() {
+    if(!_audioCtx || _audioCtx.state === 'closed') {
+        _audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    }
+    if(_audioCtx.state === 'suspended') _audioCtx.resume();
+    return _audioCtx;
+}
+function playMuyuSound() {
+    try {
+        const ctx = getAudioCtx();
+        // 第一个音：低沉咚
+        const o1 = ctx.createOscillator(), g1 = ctx.createGain();
+        o1.connect(g1); g1.connect(ctx.destination);
+        o1.type = 'sine'; o1.frequency.value = 180;
+        g1.gain.setValueAtTime(0.6, ctx.currentTime);
+        g1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+0.5);
+        o1.start(); o1.stop(ctx.currentTime+0.5);
+        // 第二个音：高一点的泛音
+        const o2 = ctx.createOscillator(), g2 = ctx.createGain();
+        o2.connect(g2); g2.connect(ctx.destination);
+        o2.type = 'sine'; o2.frequency.value = 360;
+        g2.gain.setValueAtTime(0.2, ctx.currentTime);
+        g2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+0.3);
+        o2.start(); o2.stop(ctx.currentTime+0.3);
+    } catch(e){}
+}
 function playBeep() {
     try {
-        const ctx = new (window.AudioContext||window.webkitAudioContext)();
+        const ctx = getAudioCtx();
         const o=ctx.createOscillator(), g=ctx.createGain();
         o.connect(g); g.connect(ctx.destination);
         o.frequency.value=880; o.type='sine';
@@ -1092,15 +1119,7 @@ async function knockMuyu() {
     btn.classList.add('knock');
     setTimeout(() => btn.classList.remove('knock'), 200);
     // 声音
-    try {
-        const ctx = new (window.AudioContext||window.webkitAudioContext)();
-        const o = ctx.createOscillator(), g = ctx.createGain();
-        o.connect(g); g.connect(ctx.destination);
-        o.type = 'sine'; o.frequency.value = 320;
-        g.gain.setValueAtTime(0.5, ctx.currentTime);
-        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+0.4);
-        o.start(); o.stop(ctx.currentTime+0.4);
-    } catch(e){}
+    playMuyuSound();
     // 本地立刻+1显示，异步写数据库
     muyuLocalCount += 1;
     document.getElementById('muyu-me').innerText = muyuLocalCount;
@@ -1294,7 +1313,13 @@ async function toggleTodo(id,doneBy){
 async function deleteTodo(id){ if(!confirm('删除这条待办？')) return; await db.from('todos').delete().eq('id',id); renderTodos(); showToast('已删除'); }
 async function deleteBill(id){ if(!confirm('删除这条账单？')) return; await db.from('billdata').delete().eq('id',id); renderBills(); showToast('已删除'); }
 async function deleteWish(id){ if(!confirm('删除这个心愿？')) return; await db.from('wishes').delete().eq('id',id); renderWishes(); showToast('已删除'); }
-async function deletePtItem(id){ if(!confirm('删除这个积分事项？')) return; await db.from('pointitems').delete().eq('id',id); renderPtItems(); showToast('已删除'); }
+async function deletePtItem(id){
+    if(!confirm('删除这个积分事项？\n相关得分记录也会一并清除')) return;
+    // 先删得分记录，再删事项
+    await db.from('pointlogs').delete().eq('item_id',id);
+    await db.from('pointitems').delete().eq('id',id);
+    renderPtItems(); loadPts(); showToast('已删除');
+}
 async function deleteDiary(id){ if(!confirm('删除这篇日记？')) return; await db.from('diary').delete().eq('id',id); renderDiary(); showToast('已删除'); }
 async function deleteAnniversary(id){ if(!confirm('删除这个纪念日？')) return; await db.from('anniversaries').delete().eq('id',id); renderAnniversaries(); checkAnniversaryBanner(); showToast('已删除'); }
 async function deleteMessage(id){ if(!confirm('删除这条留言？')) return; await db.from('messages').delete().eq('id',id); renderMessages(); showToast('已删除'); }
@@ -1315,6 +1340,11 @@ async function savePtItem(){
     closeModal('pt-item-modal'); renderPtItems(); showToast('积分事项已添加 ⭐');
 }
 async function earnPts(id,pts,title){
+    // 防止5秒内重复得分
+    const key = 'earn_'+id;
+    if(localStorage.getItem(key)) { showToast('刚刚已经完成过了哦 😊'); return; }
+    localStorage.setItem(key, '1');
+    setTimeout(() => localStorage.removeItem(key), 5000);
     await db.from('pointlogs').insert({user_id:myId,item_id:id,points:pts});
     loadPts(); showToast('+'+pts+' 分！'+title+' ⭐');
 }
