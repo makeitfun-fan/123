@@ -1129,12 +1129,29 @@ async function knockMuyu() {
 }
 
 // ── 出发到达 ──
+// Server酱推送key（user1=一米七，user2=一米五）
+const SCTKEYS = {
+    user1: 'SCT320606TfAyluqjnpZnLTlv8XvxoW50O',
+    user2: 'SCT320604T0xyULkS8gq5lKNsPmTMD0OkH'
+};
+
+async function sendServerChan(toUserId, title, msg) {
+    const key = SCTKEYS[toUserId];
+    if(!key) return;
+    try {
+        await fetch(`https://sctapi.ftqq.com/${key}.send?title=${encodeURIComponent(title)}&desp=${encodeURIComponent(msg)}`, {method:'POST'});
+    } catch(e) {}
+}
+
 async function sendTravel(type) {
     const tt='travel_'+pid();
     const {data}=await db.from('lovedata').select('id').eq('type',tt).maybeSingle();
     if(data) await db.from('lovedata').update({content:type}).eq('type',tt);
     else await db.from('lovedata').insert({type:tt,content:type});
+    const action = type==='depart'?'出发了 🚗':'到家了 🏠';
     showToast('已通知 '+ptName()+' 你'+(type==='depart'?'出发':'到达')+'了 '+(type==='depart'?'🚗':'🏠'));
+    // 推送微信通知给对方
+    await sendServerChan(pid(), myName()+' '+action, myName()+'刚刚点击了'+action+'按钮');
     fetchTravelStatus();
 }
 async function fetchTravelStatus() {
@@ -1160,6 +1177,8 @@ async function sendMessage() {
     const input=document.getElementById('msg-input');
     const c=input.value.trim(); if(!c||!myId) return;
     await db.from('messages').insert({sender:myId,content:c});
+    // 推送微信通知给对方
+    await sendServerChan(pid(), myName()+'给你发了留言 💬', c);
     input.value=''; renderMessages();
 }
 
