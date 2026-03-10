@@ -1656,8 +1656,17 @@ function startRoll(){
 </script>
 <script>
 if('serviceWorker' in navigator){
+  // 先注销所有旧的Service Worker，清掉缓存，再重新注册
+  navigator.serviceWorker.getRegistrations().then(regs => {
+    regs.forEach(r => r.unregister());
+  });
+  caches.keys().then(keys => {
+    keys.forEach(k => caches.delete(k));
+  });
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(()=>{});
+    navigator.serviceWorker.register('sw.js').then(reg => {
+      reg.update(); // 强制检查更新
+    }).catch(()=>{});
   });
 }
 </script>
