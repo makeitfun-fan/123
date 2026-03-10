@@ -1343,11 +1343,35 @@ async function earnPts(id,pts,title){
     await db.from('pointlogs').insert({user_id:myId,item_id:id,points:pts});
     loadPts(); showToast('+'+pts+' 分！'+title+' ⭐');
 }
-async function loadPts(){
-    const {data:my}=await db.from('pointlogs').select('points').eq('user_id',myId);
-    const {data:pt}=await db.from('pointlogs').select('points').eq('user_id',pid());
-    document.getElementById('pts-me').innerText=my?my.reduce((s,r)=>s+r.points,0):0;
-    document.getElementById('pts-partner').innerText=pt?pt.reduce((s,r)=>s+r.points,0):0;
+// --- 这是要粘贴的内容 (新代码) ---
+async function loadPts() {
+    console.log("正在同步积分数据...");
+    try {
+        // 1. 分别获取当前用户和对方的积分记录
+        const { data: myData, error: myError } = await db.from('pointlogs').select('points').eq('user_id', myId);
+        const { data: ptData, error: ptError } = await db.from('pointlogs').select('points').eq('user_id', pid());
+
+        if (myError || ptError) {
+            console.error("Supabase 查询失败:", myError || ptError);
+            return;
+        }
+
+        // 2. 核心修正：使用 Number() 确保数值转换，并正确访问 row.points 属性
+        // 之前的错误在于直接使用了 r.points，且没有处理空值和字符串转数字
+        const myTotal = (myData || []).reduce((sum, row) => sum + (Number(row.points) || 0), 0);
+        const ptTotal = (ptData || []).reduce((sum, row) => sum + (Number(row.points) || 0), 0);
+
+        // 3. 更新界面显示（增加判断防止报错）
+        const meEl = document.getElementById('pts-me');
+        const ptEl = document.getElementById('pts-partner');
+        
+        if (meEl) meEl.innerText = myTotal;
+        if (ptEl) ptEl.innerText = ptTotal;
+
+        console.log("积分同步成功！我的总分:", myTotal, "对方总分:", ptTotal);
+    } catch (e) {
+        console.error("积分逻辑执行过程中出现意外错误:", e);
+    }
 }
 async function usePoints(){
     const cur=parseInt(document.getElementById('pts-me').innerText)||0;
