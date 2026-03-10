@@ -1340,11 +1340,6 @@ async function savePtItem(){
     closeModal('pt-item-modal'); renderPtItems(); showToast('积分事项已添加 ⭐');
 }
 async function earnPts(id,pts,title){
-    // 防止5秒内重复得分
-    const key = 'earn_'+id;
-    if(localStorage.getItem(key)) { showToast('刚刚已经完成过了哦 😊'); return; }
-    localStorage.setItem(key, '1');
-    setTimeout(() => localStorage.removeItem(key), 5000);
     await db.from('pointlogs').insert({user_id:myId,item_id:id,points:pts});
     loadPts(); showToast('+'+pts+' 分！'+title+' ⭐');
 }
