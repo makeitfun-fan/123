@@ -1139,7 +1139,10 @@ async function sendServerChan(toUserId, title, msg) {
     const key = SCTKEYS[toUserId];
     if(!key) return;
     try {
-        await fetch(`https://sctapi.ftqq.com/${key}.send?title=${encodeURIComponent(title)}&desp=${encodeURIComponent(msg)}`, {method:'POST'});
+        // 用图片请求绕过跨域
+        const url = `https://sctapi.ftqq.com/${key}.send?title=${encodeURIComponent(title)}&desp=${encodeURIComponent(msg)}`;
+        const img = new Image();
+        img.src = url;
     } catch(e) {}
 }
 
