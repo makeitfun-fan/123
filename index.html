@@ -947,15 +947,28 @@ async function init() {
     const now = new Date();
     document.getElementById('hero-date').innerText = now.toLocaleDateString('zh-CN', {month:'long',day:'numeric',weekday:'short'});
 
-    // 背景默认使用CSS渐变，用户手动换背景时才覆盖
+    // 加载提示
+    showToast('加载中...');
+
+    // 带重试的初始化
+    let ok = false;
+    for(let i = 0; i < 3; i++) {
+        try {
+            await loadNicknames();
+            ok = true;
+            break;
+        } catch(e) {
+            if(i < 2) await new Promise(r => setTimeout(r, 1500));
+        }
+    }
+    if(!ok) { showToast('网络不稳定，请刷新重试'); return; }
 
     requestNotifPerm();
-    await loadNicknames();
     loadMuyuCount(); fetchMyStatus(); fetchPartnerStatus(); fetchTravelStatus();
     renderMessages(); renderBills(); renderWishes();
     renderCalendar(); checkPoopWarning();
     renderTodos(); renderPtItems(); loadPts(); renderShop();
-    renderAnniversaries(); renderDiary();
+    renderDiary();
     checkAnniversaryBanner();
 
     setInterval(() => { fetchPartnerStatus(); fetchTravelStatus(); loadMuyuCount(); }, 5000);
