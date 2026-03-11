@@ -568,17 +568,6 @@
 </div>
 
 <!-- 地点弹窗 -->
-<div class="modal-overlay" id="spot-modal" style="display:none;">
-    <div class="modal">
-        <div class="modal-title">📍 记录这个地方</div>
-        <div class="modal-sub" id="spot-coords"></div>
-        <div class="modal-field"><label>地点名称</label><input type="text" id="spot-name" placeholder="比如：北京天安门"></div>
-        <div class="modal-field"><label>去的日期</label><input type="date" id="spot-date"></div>
-        <div class="modal-field"><label>备注（可选）</label><input type="text" id="spot-note" placeholder="在这里发生了什么~"></div>
-        <button class="btn btn-primary" onclick="saveSpot()">✨ 点亮这里</button>
-        <button class="modal-cancel" onclick="closeModal('spot-modal')">取消</button>
-    </div>
-</div>
 
 <!-- 积分事项弹窗 -->
 <div class="modal-overlay" id="pt-item-modal" style="display:none;">
@@ -593,22 +582,6 @@
 </div>
 
 <!-- 纪念日弹窗 -->
-<div class="modal-overlay" id="anni-modal" style="display:none;">
-    <div class="modal">
-        <div class="modal-title">🗓️ 添加纪念日</div>
-        <div class="modal-field"><label>名称</label><input type="text" id="anni-title" placeholder="比如：在一起纪念日"></div>
-        <div class="modal-field"><label>日期</label><input type="date" id="anni-date"></div>
-        <div class="modal-field"><label>类型</label>
-            <select id="anni-type">
-                <option value="love">💕 恋爱纪念日</option>
-                <option value="birth">🎂 生日</option>
-                <option value="other">⭐ 其他</option>
-            </select>
-        </div>
-        <button class="btn btn-primary" onclick="saveAnniversary()">保存</button>
-        <button class="modal-cancel" onclick="closeModal('anni-modal')">取消</button>
-    </div>
-</div>
 
 <div class="app">
 
@@ -793,12 +766,27 @@
                 <div class="pts-who" id="pts-label-partner">对方积分</div>
             </div>
         </div>
+        <div class="card" style="margin-bottom:0;">
+            <div style="display:flex;gap:8px;margin-bottom:10px;">
+                <button class="btn btn-primary btn-sm" style="flex:1;" onclick="openModal('adjust-pts-modal')">✏️ 自由加/扣分</button>
+                <button class="btn btn-primary btn-sm" style="flex:1;background:var(--blue);" onclick="openModal('pts-log-modal');renderPtsLog()">📋 积分记录</button>
+            </div>
+        </div>
         <div class="card">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
                 <div class="card-title" style="margin-bottom:0;">积分事项</div>
                 <button class="btn btn-primary btn-sm" onclick="openModal('pt-item-modal')">+ 新增</button>
             </div>
             <div id="pt-item-list"><div style="text-align:center;color:#c4a0b0;font-size:13px;padding:16px;">还没有积分事项~</div></div>
+        </div>
+
+        <!-- 积分商城 -->
+        <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+                <div class="card-title" style="margin-bottom:0;">🛍️ 积分商城</div>
+                <button class="btn btn-primary btn-sm" onclick="openModal('shop-item-modal')">+ 上架</button>
+            </div>
+            <div id="shop-list"><div style="text-align:center;color:#c4a0b0;font-size:13px;padding:16px;">还没有商品~</div></div>
         </div>
 
         <!-- 留言板 -->
@@ -819,9 +807,7 @@
     <div id="more" class="section">
         <div class="sub-tabs">
             <div class="sub-tab active" onclick="switchSub('more','diary-sub',this)">📖 日记</div>
-            <div class="sub-tab" onclick="switchSub('more','anni-sub',this)">🗓️ 纪念日</div>
             <div class="sub-tab" onclick="switchSub('more','roll-sub',this)">🎲 谁去</div>
-            <div class="sub-tab" onclick="switchSub('more','map-sub',this);setTimeout(initPreviewMap,100)">🌍 地图</div>
         </div>
 
         <!-- 日记 -->
@@ -844,15 +830,6 @@
                 <div id="diary-list"><div style="text-align:center;color:#c4a0b0;font-size:13px;padding:20px;">还没有日记~</div></div>
             </div>
         </div>
-
-        <!-- 纪念日 -->
-        <div id="anni-sub" class="sub-section">
-            <div class="card">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-                    <div class="card-title" style="margin-bottom:0;">重要日子</div>
-                    <button class="btn btn-primary btn-sm" onclick="openModal('anni-modal')">+ 添加</button>
-                </div>
-                <div id="anni-list"><div style="text-align:center;color:#c4a0b0;font-size:13px;padding:20px;">还没有纪念日~</div></div>
             </div>
         </div>
 
@@ -866,28 +843,13 @@
                 </div>
             </div>
         </div>
-
-        <!-- 地图 -->
-        <div id="map-sub" class="sub-section">
-            <div class="card" style="padding:0;overflow:hidden;cursor:pointer;" onclick="openFullMap()">
-                <div id="map-preview"></div>
-                <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;">
-                    <div class="card-title" style="margin-bottom:0;">我们去过的地方</div>
-                    <div style="display:flex;align-items:center;gap:8px;">
-                        <span style="font-size:12px;color:var(--pink);font-weight:700;">展开 →</span>
-                    </div>
-                </div>
-            </div>
+    </div>
             <div class="card">
                 <div class="card-title">足迹列表 <span id="spot-count" style="color:var(--pink);font-size:13px;">0</span></div>
                 <div id="spot-list"><div style="text-align:center;color:#c4a0b0;font-size:13px;padding:12px;">还没有足迹~</div></div>
             </div>
         </div>
     </div>
-
-    <!-- 全屏地图覆盖层 -->
-    <div id="map-fullscreen">
-        <div id="map"></div>
         <div class="map-topbar">
             <button class="map-close-btn" onclick="closeFullMap()">✕</button>
             <span style="font-size:13px;font-weight:700;color:#3a3a3a;" id="map-mode-tip">浏览地图</span>
@@ -954,7 +916,7 @@ async function init() {
     loadMuyuCount(); fetchMyStatus(); fetchPartnerStatus(); fetchTravelStatus();
     renderMessages(); renderBills(); renderWishes();
     renderCalendar(); checkPoopWarning();
-    renderTodos(); renderPtItems(); loadPts();
+    renderTodos(); renderPtItems(); loadPts(); renderShop();
     renderAnniversaries(); renderDiary();
     checkAnniversaryBanner();
 
@@ -1367,9 +1329,7 @@ async function earnPts(id,pts,title){
 }
 // --- 这是要粘贴的内容 (新代码) ---
 async function loadPts() {
-    console.log("正在同步积分数据...");
     try {
-        // 1. 分别获取当前用户和对方的积分记录
         const { data: myData, error: myError } = await db.from('pointlogs').select('points').eq('user_id', myId);
         const { data: ptData, error: ptError } = await db.from('pointlogs').select('points').eq('user_id', pid());
 
@@ -1395,6 +1355,99 @@ async function loadPts() {
         console.error("积分逻辑执行过程中出现意外错误:", e);
     }
 }
+// ── 积分商城 ──
+async function renderShop(){
+    const {data}=await db.from('shopitems').select('*').eq('sold',false).order('created_at',{ascending:false});
+    const list=document.getElementById('shop-list');
+    if(!data||!data.length){list.innerHTML='<div style="text-align:center;color:#c4a0b0;font-size:13px;padding:16px;">还没有商品~</div>';return;}
+    list.innerHTML=data.map(item=>{
+        const isOwn = item.seller_id===myId;
+        return `<div class="pts-item-row">
+            <div>
+                <div style="font-size:13px;font-weight:600;">${item.name}</div>
+                <div style="font-size:11px;color:#c4a0b0;">上架者：${item.seller_id==='user1'?'一米七':'一米五'}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+                <span style="color:var(--pink);font-weight:700;font-size:13px;">${item.price}分</span>
+                ${isOwn
+                    ? `<button class="del-btn" onclick="deleteShopItem(${item.id})">🗑</button>`
+                    : `<button class="pts-earn-btn" onclick="buyShopItem(${item.id},${item.price},'${item.name.replace(/'/g,"\'")}')">购买</button>`
+                }
+            </div>
+        </div>`;
+    }).join('');
+}
+async function addShopItem(){
+    const name=document.getElementById('shop-item-name').value.trim();
+    const price=parseInt(document.getElementById('shop-item-price').value);
+    if(!name||!price||price<=0){showToast('请填写完整信息');return;}
+    await db.from('shopitems').insert({name,price,seller_id:myId,sold:false});
+    document.getElementById('shop-item-name').value='';
+    document.getElementById('shop-item-price').value='';
+    closeModal('shop-item-modal');
+    renderShop(); showToast('商品已上架 🛍️');
+}
+async function buyShopItem(id,price,name){
+    const myPts=parseInt(document.getElementById('pts-me').innerText)||0;
+    if(myPts<price){showToast('积分不足哦 😢');return;}
+    if(!confirm(`花 ${price} 分购买「${name}」？`)) return;
+    // 买家扣分，卖家加分
+    const {data:item}=await db.from('shopitems').select('seller_id').eq('id',id).maybeSingle();
+    if(!item) return;
+    await db.from('pointlogs').insert({user_id:myId,item_id:null,points:-price,note:'购买：'+name});
+    await db.from('pointlogs').insert({user_id:item.seller_id,item_id:null,points:price,note:'出售：'+name});
+    await db.from('shopitems').update({sold:true}).eq('id',id);
+    loadPts(); renderShop(); showToast('购买成功！🎉');
+    await sendServerChan(item.seller_id, myName()+'购买了你的商品 🛍️', `「${name}」已售出，+${price}分`);
+}
+async function deleteShopItem(id){
+    if(!confirm('下架这个商品？')) return;
+    await db.from('shopitems').delete().eq('id',id);
+    renderShop(); showToast('已下架');
+}
+
+// ── 自由加/扣分 ──
+async function submitAdjustPts(){
+    const who=document.getElementById('adjust-who').value;
+    const val=parseInt(document.getElementById('adjust-pts-val').value);
+    const note=document.getElementById('adjust-pts-note').value.trim();
+    if(!val||isNaN(val)){showToast('请填写分数');return;}
+    const targetId = who==='me' ? myId : pid();
+    await db.from('pointlogs').insert({user_id:targetId,item_id:null,points:val,note:note||(val>0?'手动加分':'手动扣分')});
+    document.getElementById('adjust-pts-val').value='';
+    document.getElementById('adjust-pts-note').value='';
+    closeModal('adjust-pts-modal');
+    loadPts(); showToast((val>0?'+':'')+val+' 分 ✅');
+}
+
+// ── 积分记录 ──
+async function renderPtsLog(){
+    const {data}=await db.from('pointlogs').select('*').order('created_at',{ascending:false}).limit(50);
+    const list=document.getElementById('pts-log-list');
+    if(!data||!data.length){list.innerHTML='<div style="text-align:center;color:#c4a0b0;padding:20px;">暂无记录</div>';return;}
+    list.innerHTML=data.map(r=>{
+        const who=r.user_id==='user1'?'一米七':'一米五';
+        const pts=r.points>0?'+'+r.points:r.points;
+        const color=r.points>0?'var(--pink)':'#999';
+        const date=r.created_at?r.created_at.slice(0,10):'';
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f5eef0;">
+            <div>
+                <div style="font-size:13px;font-weight:600;">${who} ${r.note||''}</div>
+                <div style="font-size:11px;color:#c4a0b0;">${date}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+                <span style="color:${color};font-weight:700;">${pts}分</span>
+                <button class="del-btn" onclick="deletePtsLog(${r.id})">🗑</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+async function deletePtsLog(id){
+    if(!confirm('撤回这条积分记录？')) return;
+    await db.from('pointlogs').delete().eq('id',id);
+    loadPts(); renderPtsLog(); showToast('已撤回');
+}
+
 async function usePoints(){
     const cur=parseInt(document.getElementById('pts-me').innerText)||0;
     if(cur<30){showToast('积分不足30分哦');return;}
@@ -1629,7 +1682,7 @@ function showSection(id,el){
     if(id==='home'){renderMessages();fetchMyStatus();fetchPartnerStatus();fetchTravelStatus();}
     if(id==='bill'){renderBills();renderWishes();}
     if(id==='poop'){renderCalendar();checkPoopWarning();}
-    if(id==='life'){renderTodos();renderPtItems();loadPts();renderMessages();}
+    if(id==='life'){renderTodos();renderPtItems();loadPts();renderShop();renderMessages();}
     if(id==='more'){
         renderDiary();renderAnniversaries();loadMapSpots();
         // 恢复上次的子页面
