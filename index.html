@@ -759,7 +759,7 @@
             <div class="pts-card me-card">
                 <div class="pts-num blue" id="pts-me">0</div>
                 <div class="pts-who" id="pts-label-me">我的积分</div>
-                <button class="pts-use-btn blue" onclick="usePoints()">使用30分</button>
+
             </div>
             <div class="pts-card pt-card">
                 <div class="pts-num pink" id="pts-partner">0</div>
@@ -844,19 +844,59 @@
             </div>
         </div>
     </div>
-            <div class="card">
-                <div class="card-title">足迹列表 <span id="spot-count" style="color:var(--pink);font-size:13px;">0</span></div>
-                <div id="spot-list"><div style="text-align:center;color:#c4a0b0;font-size:13px;padding:12px;">还没有足迹~</div></div>
+
+    <!-- 自由加/扣分 modal -->
+    <div class="modal-overlay" id="adjust-pts-modal" style="display:none;">
+        <div class="modal-box">
+            <div class="modal-title">✏️ 自由加/扣分</div>
+            <div class="modal-field">
+                <label>对象</label>
+                <select id="adjust-who" style="width:100%;padding:10px;border-radius:10px;border:1.5px solid #f0d6e0;font-size:14px;">
+                    <option value="me">我自己</option>
+                    <option value="partner">对方</option>
+                </select>
+            </div>
+            <div class="modal-field">
+                <label>分数（正数加分，负数扣分）</label>
+                <input type="number" id="adjust-pts-val" placeholder="比如 10 或 -5">
+            </div>
+            <div class="modal-field">
+                <label>备注（可选）</label>
+                <input type="text" id="adjust-pts-note" placeholder="说明一下原因~">
+            </div>
+            <div style="display:flex;gap:8px;">
+                <button class="btn btn-primary" onclick="submitAdjustPts()">确认</button>
+                <button class="btn" onclick="closeModal('adjust-pts-modal')" style="background:#f5eef0;">取消</button>
             </div>
         </div>
     </div>
-        <div class="map-topbar">
-            <button class="map-close-btn" onclick="closeFullMap()">✕</button>
-            <span style="font-size:13px;font-weight:700;color:#3a3a3a;" id="map-mode-tip">浏览地图</span>
-<span></span>
+
+    <!-- 积分记录 modal -->
+    <div class="modal-overlay" id="pts-log-modal" style="display:none;">
+        <div class="modal-box" style="max-height:80vh;overflow-y:auto;">
+            <div class="modal-title">📋 积分记录</div>
+            <div id="pts-log-list"><div style="text-align:center;color:#c4a0b0;padding:20px;">加载中...</div></div>
+            <button class="btn" onclick="closeModal('pts-log-modal')" style="background:#f5eef0;margin-top:10px;">关闭</button>
         </div>
-        <div class="map-hint" id="map-hint">👆 点击地图上任意位置</div>
-        <button class="map-add-btn" id="map-add-btn" onclick="toggleAddMode()">📍</button>
+    </div>
+
+    <!-- 上架商品 modal -->
+    <div class="modal-overlay" id="shop-item-modal" style="display:none;">
+        <div class="modal-box">
+            <div class="modal-title">🛍️ 上架商品</div>
+            <div class="modal-field">
+                <label>商品名称</label>
+                <input type="text" id="shop-item-name" placeholder="比如：捏脸一次">
+            </div>
+            <div class="modal-field">
+                <label>所需积分</label>
+                <input type="number" id="shop-item-price" placeholder="比如：10">
+            </div>
+            <div style="display:flex;gap:8px;">
+                <button class="btn btn-primary" onclick="addShopItem()">上架</button>
+                <button class="btn" onclick="closeModal('shop-item-modal')" style="background:#f5eef0;">取消</button>
+            </div>
+        </div>
     </div>
 
     <!-- 底部导航 -->
@@ -1684,7 +1724,7 @@ function showSection(id,el){
     if(id==='poop'){renderCalendar();checkPoopWarning();}
     if(id==='life'){renderTodos();renderPtItems();loadPts();renderShop();renderMessages();}
     if(id==='more'){
-        renderDiary();renderAnniversaries();loadMapSpots();
+        renderDiary();
         // 恢复上次的子页面
         const lastSub=localStorage.getItem('last_sub_more');
         if(lastSub&&lastSub!=='diary-sub'){
@@ -1694,7 +1734,7 @@ function showSection(id,el){
                 document.getElementById('more').querySelectorAll('.sub-section').forEach(s=>s.classList.remove('active'));
                 document.getElementById('more').querySelectorAll('.sub-tab').forEach(t=>t.classList.remove('active'));
                 subEl.classList.add('active'); tabEl.classList.add('active');
-                if(lastSub==='map-sub') setTimeout(initPreviewMap,100);
+
             }
         }
     }
@@ -1705,7 +1745,7 @@ function switchSub(page,id,el){
     parent.querySelectorAll('.sub-tab').forEach(t=>t.classList.remove('active'));
     document.getElementById(id).classList.add('active'); el.classList.add('active');
     localStorage.setItem('last_sub_'+page, id);
-    if(id==='map-sub') setTimeout(initPreviewMap,100);
+
 }
 
 // ── 背景 ──
